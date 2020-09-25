@@ -1,16 +1,32 @@
-#include <LiquidCrystal.h>
-// best note for sample code: https://tinyurl.com/y6xhshw4
-// https://tinyurl.com/yxa48kty
-// pms7003 sensor: https://www.espruino.com/PMS7003
-// Easy chart of pm10 vs pm2.5:https://tinyurl.com/y3fkjgo7
-//www.diyusthad.com
-// US AQI standard: https://diyprojects.io/calculate-air-quality-index-iaq-iqa-dsm501-arduino-esp8266/
+/*-------------------------------------------------------------
+  smoke_sensor
 
-// LCD Display configuration
-const int rs = 12, en = 11, d4 = 4, d5 = 5, d6 = 6, d7 = 7;
-LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+  This code drives a Sharp GP2Y1010AU0F sensor with control of 
+  a fan and LCD display.  
 
-// Dust Sensor Control Configuration
+  For calibration, achart of pm10 vs pm2.5:https://tinyurl.com/y3fkjgo7
+  Best note for sample code: https://tinyurl.com/y6xhshw4
+  US AQI standard: https://tinyurl.com/yxa48kty
+ -------------------------------------------------------------*/
+
+// Define if we're using I2C module (rather than 4-bit GPIO) to control
+//   the display
+#define I2C_DISPLAY
+
+// Both displays use the same API, so we only need to include the
+//   correct library and initialize properly
+#ifdef I2C_DISPLAY
+  #include <Wire.h>
+  #include <LiquidCrystal_I2C.h>
+  LiquidCrystal_I2C lcd = LiquidCrystal_I2C(0x27,16,2);
+#else
+  #include <LiquidCrystal.h>
+  // LCD Display configuration
+  const int rs = 12, en = 11, d4 = 4, d5 = 5, d6 = 6, d7 = 7;
+  LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+#endif
+
+// Dust Sensor Physical Configuration
 int dustPin=A0;
 int ledPower=13;  // Pin D13
 int delayTime=280;
@@ -22,8 +38,7 @@ float offTime=9680;
 #define DUST_OFFSET_CAL 0   // offset to pm2.5 value n 
 #define DUST_SLOPE_CAL 1.65 // multiplier for pm2.5 value
 
-
-// Display content constants and variables
+// LCD Display content constants and variables
 #define DESC_LEN 30         // max length for AQI Description
 #define ACCUM_FRACTION 0.05  // lower = more smooth filtering
 char first_line[DESC_LEN];  // holds the first display line
@@ -31,39 +46,84 @@ char second_line[DESC_LEN]; // holds the second display line
 char dust_desc[DESC_LEN];
 int display_scroll = 0;
 
-// Button to re-start fast sampling
+// Control pin for NPN transistor for fan power
+#define FAN_CONTROL_PIN 5
+
+// Button to re-start fast sampling (optional to hook up)
 #define RESAMPLE_BUTTON 8  // digital 8 button
 
 // Loop speed configuration
-#define SLOW_SAMPLING_DELAY_MS 9000  // sample every 10 seconds
-#define NUM_FAST_ITERATIONS 60 // take 60 samples fast
+#define SLOW_SAMPLING_DELAY_MS 59000  // sample every 60 seconds
+#define SLOW_SAMPLING_FAN_LEAD 10000   // fan on 10 seconds before taking sample
+#define NUM_FAST_ITERATIONS 60 // take 60 samples fast when powered up
 
-void setup(){ //////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////
+void setup(){ 
   // Communication with the host computer
   Serial.begin(115200);
 
   // Sensor pins
-  pinMode(ledPower,OUTPUT);
-  pinMode(dustPin, INPUT);
+  pinMode(ledPower,OUTPUT);  // Turns sensor LED on/off
+  pinMode(dustPin, INPUT);   // Analog input
 
-  // LCD
+
+  // set npn transistor high (fan on) to start
+  pinMode(FAN_CONTROL_PIN,OUTPUT);
+  digitalWrite(FAN_CONTROL_PIN,HIGH);
+  
+  // LCD Initialization
+#ifdef I2C_DISPLAY
+  lcd.init();
+  lcd.backlight();
+#else
   lcd.begin(16, 2);  // columns, rows
+#endif
   lcd.print("STARTUP");
   lcd.setCursor(0,1);  // column, row
   lcd.print("...  ...  ...  ");
   lcd.home();  // reposition cursor
 
-  // Resample Button
+
+  // Init the resample button (does nothing if not hooked up)
   pinMode(RESAMPLE_BUTTON, INPUT_PULLUP);
 }
+
+
+// slow_sample_delay()
+//   turns the fan and lcd off and waits for sampline_delay ms. 
+//   then turns both on, waits a bit, and then exits
+
+void slow_sample_delay(uint16_t sampling_delay, uint16_t fan_lead){
+  uint16_t timer_iterations = 0;
+  
+  while(digitalRead(RESAMPLE_BUTTON) && (timer_iterations < sampling_delay)){
+    delay(1); // Run more
+    if(timer_iterations > (sampling_delay - fan_lead) ) {
+      digitalWrite(FAN_CONTROL_PIN,HIGH); // fan on
+      lcd.backlight();
+    }
+    else {
+      digitalWrite(FAN_CONTROL_PIN,LOW);  // fan off
+      lcd.noBacklight();
+    }
+      
+    timer_iterations++;
+      
+    if(timer_iterations % 500 == 0)
+      Serial.print('.');
+  }
+  Serial.println("");
+}
+
 
 uint8_t loop_iterations = 0; // only needs to hold max value of 61
 float dust_accum = 20.0;  // current dust sensor value, averaged
 
 void loop(){ //////////////////////////////////////////////////////////
+  digitalWrite(FAN_CONTROL_PIN,HIGH); // fan on
   digitalWrite(ledPower,LOW); // power on sensor LED
   delayMicroseconds(delayTime); // wait for data collection
-  float dustVal=analogRead(dustPin); // read sensor value
+  int dustVal=analogRead(dustPin); // read sensor value
   delayMicroseconds(delayTime2);  // wait for a settling time
   digitalWrite(ledPower,HIGH);  // power off the sensor LED
   delayMicroseconds(offTime); // delay for the remainder of a second
@@ -71,23 +131,20 @@ void loop(){ //////////////////////////////////////////////////////////
 
   
   // Slow ourselves down to prevent sensor wear, unless button is pressed
-  int timer_iterations = 0;
+  uint16_t timer_iterations = 0;
   if(loop_iterations > NUM_FAST_ITERATIONS) {
-    while(digitalRead(RESAMPLE_BUTTON) && (timer_iterations < SLOW_SAMPLING_DELAY_MS)){
-      delay(1); // Run more
-      timer_iterations++;
-      if(timer_iterations % 500 == 0)
-        Serial.print('.');
-    }
-    Serial.println("");
+    slow_sample_delay(SLOW_SAMPLING_DELAY_MS, SLOW_SAMPLING_FAN_LEAD);
   }
   else {
+    // I'm in the initial loop, make sure the fan and backlight is on
     loop_iterations++; // only count up to 61 then stop
+    digitalWrite(FAN_CONTROL_PIN,HIGH); // fan on
+    lcd.backlight();
   }
 
-  
   // Check the resample button
   if(!digitalRead(RESAMPLE_BUTTON)){
+    digitalWrite(FAN_CONTROL_PIN,HIGH);  // Fan on
     Serial.println(F("Fast Resampling"));
     loop_iterations = 0;
   }
