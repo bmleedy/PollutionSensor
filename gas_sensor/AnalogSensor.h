@@ -24,9 +24,10 @@ class AnalogSensor {
   sensor_config config[6];  //statically allocated.  We'll use it anyway
   sensor_state state[6];
   uint8_t num_sensors = 0;
+  LiquidCrystal_I2C* lcd = NULL;
 
 public:
-  AnalogSensor(){}
+  AnalogSensor(LiquidCrystal_I2C* lcd);
   void add_sensor(const char short_name[SHORT_NAME_LEN], 
               uint8_t column,
               uint8_t row,
@@ -34,7 +35,10 @@ public:
               float accum_rate);
   void sense_all();
   uint16_t sense(uint8_t id);
-  void log_all(LiquidCrystal_I2C* lcd, File * log_file);
-  void log(LiquidCrystal_I2C* lcd, File * log_file, uint8_t id);
+  void log_all(File * log_file);
+  void log(File * log_file, uint8_t id);
+  void log_all_serial_only();
+  void log_serial(uint8_t id);
+  void update_lcd();
 };
 #endif

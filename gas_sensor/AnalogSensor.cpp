@@ -1,5 +1,9 @@
 #include "AnalogSensor.h"
 
+AnalogSensor::AnalogSensor(LiquidCrystal_I2C* lcd){
+  this->lcd=lcd;
+}
+
 void AnalogSensor::add_sensor(const char short_name[SHORT_NAME_LEN], 
               uint8_t column,
               uint8_t row,
@@ -36,30 +40,31 @@ uint16_t AnalogSensor::sense(uint8_t id){
   this->state[id].avg_value = this->state[id].avg_value*(1.0-this->config[id].accum_rate) 
                                       + this->state[id].last_value*this->config[id].accum_rate;
   this->state[id].last_value;
+
+  if( this->lcd != NULL) 
+    this->update_lcd();
 }
 
-void AnalogSensor::log_all(LiquidCrystal_I2C* lcd, File * log_file){
+void AnalogSensor::log_all(File * log_file){
   for(uint8_t i=0; i<num_sensors; i++){
-    this->log(lcd, log_file, i);
+    this->log(log_file, i);
   }
 }
-  
-void AnalogSensor::log(LiquidCrystal_I2C* lcd, File * log_file, uint8_t id){
 
+
+void AnalogSensor::update_lcd(){
+  for(uint8_t id=0; id<num_sensors; id++){
+    lcd->setCursor(this->config[id].display_column,this->config[id].display_row);
+    lcd->print(this->config[id].short_name);
+    lcd->print(":");
+    lcd->print(this->state[id].avg_value, 0);
+  }
+}
+
+
+void AnalogSensor::log(File * log_file, uint8_t id){
   // Serial console output
-  Serial.print(this->config[id].analog_pin);
-  Serial.print(F("| "));
-  Serial.print(this->config[id].short_name);
-  Serial.print(F("- avg: "));
-  Serial.print(this->state[id].avg_value, 1);
-  Serial.print(F(" | last: "));
-  Serial.println(this->state[id].last_value);
-
-  // LCD output
-  lcd->setCursor(this->config[id].display_column,this->config[id].display_row);
-  lcd->print(this->config[id].short_name);
-  lcd->print(":");
-  lcd->print(this->state[id].avg_value, 0);
+  this->log_serial(id);
 
   // Logfile output (if configured)
 //  if(log_file != NULL){
@@ -70,4 +75,20 @@ void AnalogSensor::log(LiquidCrystal_I2C* lcd, File * log_file, uint8_t id){
     log_file->print(this->state[id].last_value);
     log_file->print(",");
 //  }
+}
+
+void AnalogSensor::log_all_serial_only(){
+  for(uint8_t i=0; i<num_sensors; i++){
+    this->log_serial(i);
+  }
+}
+
+void AnalogSensor::log_serial(uint8_t id){
+  Serial.print(this->config[id].analog_pin);
+  Serial.print(F("| "));
+  Serial.print(this->config[id].short_name);
+  Serial.print(F("- avg: "));
+  Serial.print(this->state[id].avg_value, 1);
+  Serial.print(F(" | last: "));
+  Serial.println(this->state[id].last_value);
 }

@@ -29,53 +29,34 @@
 #define COL1 0
 #define COL2 10
 
-#define LOOP_PERIOD_MILLIS 5000
+#define LOOP_PERIOD_MILLIS 1000  // every one second
+#define LOG_EVERY_N_LOOPS    10  // every ten seconds
+#define SECONDS_PER_DAY 86400
 
-LiquidCrystal_I2C lcd = LiquidCrystal_I2C(0x27,16,2);
+LiquidCrystal_I2C * lcd = new LiquidCrystal_I2C(0x27,16,2);
 LogFile * logfile;
-AnalogSensor sensors;  // container for all the sensors I configure
+AnalogSensor * sensors;  // container for all the sensors I configure
 
 void setup() {
   Serial.begin(115200);
   while (!Serial);
 
-  // configure all sensors
-  Serial.println(F("Init Sensors..."));
-  sensors.add_sensor(" Alc",       // shortname
-                      COL1,        // lcd column
-                      0,           // lcd row
-                      A0,         // analog_pin
-                      0.1);
-  sensors.add_sensor(" LPG",       // shortname
-                      COL1,        // lcd column
-                      1,           // lcd row
-                      A1,         // analog_pin
-                      0.1);
-  sensors.add_sensor("  CO",       // shortname
-                      COL1,        // lcd column
-                      2,           // lcd row
-                      A2,         // analog_pin
-                      0.1);
-  sensors.add_sensor("Ozon",       // shortname
-                      COL2,        // lcd column
-                      0,           // lcd row
-                      A7,         // analog_pin
-                      0.1);
-  sensors.add_sensor(" Gas",       // shortname
-                      COL2,        // lcd column
-                      1,           // lcd row
-                      A3,         // analog_pin
-                      0.1);
-  sensors.add_sensor(" Haz",       // shortname
-                      COL2,        // lcd column
-                      2,           // lcd row
-                      A6,         // analog_pin
-                      0.1);
- 
   Serial.println(F("Init LCD..."));
-  lcd.init(); 
-  lcd.backlight();
-  lcd.clear();
+  lcd->init(); 
+  lcd->backlight();
+  lcd->clear();
+
+  Serial.println(F("Init Sensors..."));
+  //Args are: (Shortname, LCD_column, LCD_row, Ain_pin, averaging_rate) //
+  sensors = new AnalogSensor(lcd);
+  sensors->add_sensor(" Alc", COL1, 0, A0, 0.1);  // Alcohol
+  sensors->add_sensor(" LPG", COL1, 1, A1, 0.1);  // LPG
+  sensors->add_sensor("  CO", COL1, 2, A2, 0.1);  // Carbon Monoxide
+  sensors->add_sensor("Ozon", COL2, 0, A7, 0.1);  // Ozone
+  sensors->add_sensor(" Gas", COL2, 1, A3, 0.1);  // Gas leaks
+  sensors->add_sensor(" Haz", COL2, 2, A6, 0.1);  // Poison Gasses (organic)
+ 
+
 
   Serial.println(F("Init Logfile..."));
   logfile = new LogFile();
@@ -92,18 +73,24 @@ void loop() {
   // Serial log start
   Serial.print(loop_number++); Serial.print(F(" ----------- ")); Serial.println(loop_start_millis);
 
-  // Collect and log sensor data
-  logfile->open_line(loop_number, loop_start_millis);
-  sensors.sense_all();
-  sensors.log_all(&lcd, &logfile->file);
-  logfile->close_line();
+  // Collect and print sensor data to screen
+  sensors->sense_all();
+  sensors->log_all_serial_only();
+
 
 
   // Wrap the file every day
-  if(loop_number % (86400 / (LOOP_PERIOD_MILLIS / 1000)) == 0){
+  if(loop_number % (SECONDS_PER_DAY / (LOOP_PERIOD_MILLIS / 1000)) == 0){
     Serial.println(F("Wrapping the log File"));
   }
-    
+
+  // Log to file every N loops
+  if(loop_number % LOG_EVERY_N_LOOPS == 0) {
+    logfile->open_line(loop_number, loop_start_millis);
+    sensors->log_all(&logfile->file);
+    logfile->close_line();
+  }
+  
   // Burn remainder of the loop period
   while(millis() < loop_start_millis + LOOP_PERIOD_MILLIS) {
     if(loop_start_millis > millis()){

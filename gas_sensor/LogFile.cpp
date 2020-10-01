@@ -1,5 +1,6 @@
 #include "LogFile.h"
 
+// todo: make this not hacky and crappy
 
 LogFile::LogFile(){
   // Init the SD card
@@ -43,8 +44,6 @@ uint16_t LogFile::get_highest_used_id(){
   uint16_t highest_number_found = 0;
   File dir;
   dir = SD.open("/", FILE_READ);
-  Serial.println(dir);
-  Serial.println(dir.name());
   //check that it opened and is a directory
   if(!dir) {
     //could not open directory
@@ -69,25 +68,18 @@ uint16_t LogFile::get_highest_used_id(){
     uint16_t temp_filename_len = MAX_FILENAME_LEN;
     char * token;
     strncpy(temp_filename, entry.name(), MAX_FILENAME_LEN);
-    Serial.println(temp_filename);
     // string is of the format "LOGFILE_NAME_BASE.number.csv"
     token = strtok(temp_filename, "-");
 
     // compare the first token to the filename
     if(strncmp(token, log_file_name_base, temp_filename_len) != 0){
-      Serial.print(F("invalid base: ")); Serial.println(token);
-      // continue;  //different base name - ignore
-    } else {
-      Serial.print(F("valid base: ")); Serial.println(token);
-    }
-
-    
+      continue;  //different base name - ignore
+    } 
+        
     token = strtok(NULL, ".");  // todo: can this just be next_token?
     // convert and compare the number token (if found)
-    Serial.print(F("number token is: ")); Serial.println(token);
     uint16_t file_number = atoi(token);
     if(file_number > highest_number_found){
-      Serial.print(F("integer is: ")); Serial.println(file_number);
       highest_number_found = file_number;
     }
     entry.close();
