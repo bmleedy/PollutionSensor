@@ -25,6 +25,7 @@ class AnalogSensor {
   sensor_state state[6];
   uint8_t num_sensors = 0;
   LiquidCrystal_I2C* lcd = NULL;
+  bool display_raw = false;
 
 public:
   AnalogSensor(LiquidCrystal_I2C* lcd);
@@ -40,5 +41,6 @@ public:
   void log_all_serial_only();
   void log_serial(uint8_t id);
   void update_lcd();
+  void set_display_raw(bool display_raw);
 };
 #endif

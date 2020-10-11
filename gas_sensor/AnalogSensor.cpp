@@ -4,6 +4,10 @@ AnalogSensor::AnalogSensor(LiquidCrystal_I2C* lcd){
   this->lcd=lcd;
 }
 
+void AnalogSensor::set_display_raw(bool display_raw){
+  this->display_raw = display_raw;
+}
+
 void AnalogSensor::add_sensor(const char short_name[SHORT_NAME_LEN], 
               uint8_t column,
               uint8_t row,
@@ -57,7 +61,10 @@ void AnalogSensor::update_lcd(){
     lcd->setCursor(this->config[id].display_column,this->config[id].display_row);
     lcd->print(this->config[id].short_name);
     lcd->print(":");
-    lcd->print(this->state[id].avg_value, 0);
+    if(this->display_raw)
+      lcd->print(this->state[id].last_value);
+    else
+      lcd->print(this->state[id].avg_value, 0);
   }
 }
 

@@ -19,6 +19,8 @@ class LogFile{
   void rotate_file();
   void open_line(uint16_t id, uint16_t timestamp);
   void close_line();
+  void get_file_name(char * buffer, uint8_t max_size);
+  char * get_file_name_ptr();
 
  private:
   uint16_t get_highest_used_id();

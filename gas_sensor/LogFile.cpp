@@ -23,6 +23,18 @@ LogFile::LogFile(){
   
 }
 
+void LogFile::get_file_name(char * buffer, uint8_t max_size){
+  uint8_t maxlen = MAX_FILENAME_LEN;
+  if(max_size < maxlen)
+    maxlen = max_size;   // take the smallest max size
+
+  strncpy(buffer, this->current_name, max_size);
+}
+
+char * LogFile::get_file_name_ptr(){
+  return this->current_name;
+}
+
 void LogFile::open_line(uint16_t id, uint16_t timestamp){
   this->file.close();
   this->file = SD.open(this->current_name, FILE_WRITE);
@@ -101,4 +113,6 @@ uint16_t LogFile::get_highest_used_id(){
 
   void LogFile::override_file_number(uint16_t new_id){
     this->current_id = new_id;
+    snprintf(current_name, MAX_FILENAME_LEN, "%s-%d.%s", log_file_name_base, current_id, LOGFILE_EXTENSION);
+    Serial.print(F("Logfile: File name is now")); Serial.println(current_name);
   }
