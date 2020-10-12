@@ -3,27 +3,28 @@
 // todo: make this not hacky and crappy
 
 LogFile::LogFile(){
+  this->re_init_sd();
+}
+
+bool LogFile::re_init_sd(){
   // Init the SD card
   pinMode(10, OUTPUT);
   Serial.println(F("LogFile: Init SD card..."));
-  SD.begin(10);
+  this->sd_failure = !SD.begin(10); // begin returns false on failure
 
-//    // Open or create the directory todo: fix directory creation
-//    Serial.println(F("LogFile: Init SD directory..."));
-//    if(!SD.mkdir(LOG_DIRECTORY)){
-//      Serial.println(F("SD directory creation failed!"));
-//      failure = SD_DIR_FAILURE;
-//      return;
-//    }
-
-  // Init the file name
-  current_id = this->get_highest_used_id();
-  snprintf(current_name, MAX_FILENAME_LEN, "%s-%d.%s", log_file_name_base, ++current_id, LOGFILE_EXTENSION);
-  Serial.print(F("Logfile: File name is ")); Serial.print(current_name); Serial.println("|");
-  
+  if(!sd_failure) {
+    // Init the file name
+    current_id = this->get_highest_used_id();
+    snprintf(current_name, MAX_FILENAME_LEN, "%s-%d.%s", log_file_name_base, ++current_id, LOGFILE_EXTENSION);
+    Serial.print(F("Logfile: File name is ")); Serial.print(current_name); Serial.println("|");
+  } else {
+    // Failed to init SD, print error and fail out
+    Serial.println(F("LogFile: ERROR - Failed to init SD card!"));
+  }
+  return this->sd_failure;
 }
 
-void LogFile::get_file_name(char * buffer, uint8_t max_size){
+void LogFile::get_file_name(char * buffer, uint8_t max_size){  
   uint8_t maxlen = MAX_FILENAME_LEN;
   if(max_size < maxlen)
     maxlen = max_size;   // take the smallest max size
@@ -35,7 +36,17 @@ char * LogFile::get_file_name_ptr(){
   return this->current_name;
 }
 
+bool LogFile::is_sd_failed(){
+  if(sd_failure)     // check whether we're marked for failure
+    if(re_init_sd()) // attempt to re-init
+      return true;   // return true of re-init fails
+      
+  return false;  // otherwise, return false
+}
+
 void LogFile::open_line(uint16_t id, uint16_t timestamp){
+  if(is_sd_failed())
+    return;
   this->file.close();
   this->file = SD.open(this->current_name, FILE_WRITE);
   if (this->file) {
@@ -44,6 +55,7 @@ void LogFile::open_line(uint16_t id, uint16_t timestamp){
     Serial.println(F("error opening log file:"));
     Serial.println(this->current_name);
     Serial.println(this->file);
+    this->sd_failure = true;  //todo: will  this cause problems?
   }
 
   this->file.print(id);
@@ -53,6 +65,9 @@ void LogFile::open_line(uint16_t id, uint16_t timestamp){
 }
 
 uint16_t LogFile::get_highest_used_id(){
+  if(is_sd_failed())
+    return 0;
+    
   uint16_t highest_number_found = 0;
   File dir;
   dir = SD.open("/", FILE_READ);
@@ -102,17 +117,19 @@ uint16_t LogFile::get_highest_used_id(){
   return highest_number_found;
 }
 
-  void LogFile::close_line(){  //todo:check that the file is  open
-    this->file.println("");
-    this->file.close();
-  }
+void LogFile::close_line(){  //todo:check that the file is  open
+  if(is_sd_failed())
+    return;
+  this->file.println("");
+  this->file.close();
+}
 
-  void LogFile::rotate_file(){
-    this->override_file_number(this->current_id+1);
-  }
+void LogFile::rotate_file(){
+  this->override_file_number(this->current_id+1);
+}
 
-  void LogFile::override_file_number(uint16_t new_id){
-    this->current_id = new_id;
-    snprintf(current_name, MAX_FILENAME_LEN, "%s-%d.%s", log_file_name_base, current_id, LOGFILE_EXTENSION);
-    Serial.print(F("Logfile: File name is now")); Serial.println(current_name);
-  }
+void LogFile::override_file_number(uint16_t new_id){
+  this->current_id = new_id;
+  snprintf(current_name, MAX_FILENAME_LEN, "%s-%d.%s", log_file_name_base, current_id, LOGFILE_EXTENSION);
+  Serial.print(F("Logfile: File name is now")); Serial.println(current_name);
+}

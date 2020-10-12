@@ -6,6 +6,7 @@
 #include "AnalogSensor.h"
 #include "LogFile.h"
 #include "smoke_sensor.h"
+#include "SensorMenu.h"
 
 /*------------------------------------
  * Gas sensor test harness
@@ -24,30 +25,59 @@
  ** ! MQ-137 - Ammonia - https://www.sparkfun.com/products/17053 
  * ! Multi-channel gas sensor: https://wiki.seeedstudio.com/Grove-Multichannel_Gas_Sensor/
  */
+/*
+ * Current todo list:
+ *   - Enable re-init and graceful init failure For the SD card (with display when failed)
+ *   - Display warnings and AQI
+ *   - Set thresholds for warnings in menu
+ *   - Collect baselines for values
+ *   - Menu item to turn backlight off (when not in menu)
+ *   - Calibrate particle sensor
+ *   - expose programming cable to outside 
+ *   - buy additional buttons(running low)
+ *   - option to clear SD card
+ *   - menu option to list/delete files
+ *   - turn off lights with the menu (when menu is not selected)
+ */
 
+byte file_ok_glyph[8] = 
+  {
+    B11110,
+    B10001,
+    B11111,
+    B10001,
+    B11111,
+    B10001,
+    B11111,
+  };
 
-
-
+byte file_bad_glyph[8] = 
+  {
+    B11110,
+    B10001,
+    B11011,
+    B10101,
+    B11011,
+    B10001,
+    B11111,
+  };
 
 
 // Indices of LCD columns
 #define COL1 0
 #define COL2 10
 
-#define LOOP_PERIOD_MILLIS 1000  // every one second
-#define LOG_EVERY_N_LOOPS    10  // every ten seconds
+
 #define SECONDS_PER_DAY 86400
 
-// Menu Buttons
-#define MENU_SELECT_BUTTON 7
-#define MENU_UP_BUTTON     6
-#define MENU_DN_BUTTON     5
+
 
 
 LiquidCrystal_I2C * lcd = new LiquidCrystal_I2C(0x27,20,4);
 LogFile * logfile;
 AnalogSensor * sensors;  // container for all the sensors I configure
 SmokeSensor * dust;
+SensorMenu * menu;
 
 void setup() {
   Serial.begin(115200);
@@ -63,6 +93,8 @@ void setup() {
   lcd->init(); 
   lcd->backlight();
   lcd->clear();
+  lcd->createChar(0, file_ok_glyph);
+  lcd->createChar(1, file_bad_glyph);
 
   Serial.println(F("Init gas Sensors..."));
   //Args are: (Shortname, LCD_column, LCD_row, Ain_pin, averaging_rate) //
@@ -80,165 +112,18 @@ void setup() {
   Serial.println(F("Init Logfile..."));
   logfile = new LogFile();
 
+  Serial.println(F("Init sensor menu..."));
+  menu = new SensorMenu(lcd, logfile, sensors, dust, COL1, COL2);
+
+  lcd->setCursor(0,0);
+  lcd->write(byte(0));
+  lcd->write(byte(1));
+
   Serial.println(F("Init done."));
 }
 
 uint32_t loop_number = 0;
 uint32_t loop_start_millis = 0;
-
-
-bool exit_callback(){
-  return true;
-}
-
-
-void display_file_menu(){
-  Serial.println(F("Entered file Callback"));
-  lcd->clear();
-  lcd->setCursor(0, 0);
-  lcd->print(F("Current File: "));
-  lcd->setCursor(0, 1);
-  lcd->print(F("   "));
-  lcd->print(logfile->get_file_name_ptr());
-  lcd->setCursor(0, 2);
-  lcd->print(F("Use arrows to set."));
-  lcd->setCursor(0, 3);
-  lcd->print(F("Blue to exit."));
-}
-
-bool file_callback(){
-    delay(1000);
-    display_file_menu();
-    while(true){
-    if(digitalRead(MENU_SELECT_BUTTON)==LOW){
-      return false;
-    } else if(digitalRead(MENU_UP_BUTTON)==LOW || digitalRead(MENU_DN_BUTTON)==LOW){
-      logfile->rotate_file();
-      display_file_menu();
-      delay(500); // wait a  moment to check again
-    }
-  }
-}
-
-
-bool display_raw = false;
-bool disp_callback(){
-  Serial.println(F("Entered Display Callback"));
-  lcd->clear();
-  lcd->setCursor(0, 0);
-  lcd->print(F("Press up or down to "));
-  lcd->setCursor(0, 1);
-  lcd->print(F("   set display type."));
-  lcd->setCursor(0, 2);
-  lcd->print(F("Blue button to exit."));
-  lcd->setCursor(7, 3);
-  if(display_raw)
-    lcd->print(F("Raw    "));
-  else
-    lcd->print(F("Average"));
-
-
-  while(true){
-    if(digitalRead(MENU_SELECT_BUTTON)==LOW){
-      dust->set_display_raw(display_raw);
-      sensors->set_display_raw(display_raw);
-      return false;
-    } else if(digitalRead(MENU_UP_BUTTON)==LOW || digitalRead(MENU_DN_BUTTON)==LOW){
-      display_raw = !display_raw;
-      lcd->setCursor(7, 3);
-      if(display_raw)
-        lcd->print(F("Raw    "));
-      else
-        lcd->print(F("Average"));
-      delay(500); // wait a  moment to check again
-    }
-  }
-}
-
-#define MENU_LENGTH 8
-const char menu_0[] PROGMEM = "Raw / Avg"; // "String 0" etc are strings to store - change to suit.
-const char menu_1[] PROGMEM = "Curr File";
-const char menu_2[] PROGMEM = "Time Set ";
-const char menu_3[] PROGMEM = "Rset File";
-const char menu_4[] PROGMEM = "Samp Rate";
-const char menu_5[] PROGMEM = "Log  Rate";
-const char menu_6[] PROGMEM = "Init SD  ";
-const char menu_e[] PROGMEM = "EXIT     ";
-const char *const menu_line[] PROGMEM = {menu_e,         menu_0,         menu_1,         menu_2,         menu_3,         menu_4,         menu_5,         menu_6};
-
-
-// Render the menue, starting with a specific line
-void render_menu(uint8_t line){
-  lcd->clear();
-  for(int d_row=line; d_row < line + 4 && d_row < MENU_LENGTH; d_row++){
-    char buffer[21];  // make sure this is large enough for the largest string it must hold
-    strcpy_P(buffer, (char *)pgm_read_word(&(menu_line[d_row])));
-    lcd->setCursor(COL1, d_row-line);
-    lcd->print(buffer);
-    Serial.print("render line "); Serial.println(d_row);
-  }
-  lcd->setCursor(0,0);
-  lcd->cursor();
-}
-
-bool enter_menu_item(uint8_t id){
-  delay(1000);
-  Serial.print(F("entering menu item ")); Serial.println(id);
-  bool rv = false;
-  switch(id){
-    case 0:
-      rv = exit_callback();
-      break;
-    case 1:
-      rv = disp_callback();
-      break;
-    case 2:
-      rv = file_callback();
-      break;
-    default:
-      Serial.println(F("No function exists for this menu item"));
-      return false;
-  }
-  delay(1000);
-  return rv;
-}
-
-void enter_menu(){
-    uint8_t menu_pos = 0;
-    render_menu(menu_pos);  // render the menu at the start
-    // now
-    while(true){
-      // look for the up, down, or select buttons
-      if(digitalRead(MENU_UP_BUTTON)==LOW && menu_pos > 0){
-        menu_pos--;
-        render_menu(menu_pos);
-        delay(200);
-      } else if(digitalRead(MENU_DN_BUTTON)==LOW && menu_pos < MENU_LENGTH-1){
-        menu_pos++;
-        render_menu(menu_pos);
-        delay(200);
-      } else if(digitalRead(MENU_SELECT_BUTTON)==LOW){
-        if(enter_menu_item(menu_pos)){
-          break;
-        }
-        else{
-          lcd->clear();
-          render_menu(menu_pos);
-        }
-      }
-    }
-
-    lcd->clear();
-}
-
-
-
-
-
-
-
-
-
 
 void loop() {
   loop_start_millis = millis();
@@ -254,20 +139,31 @@ void loop() {
 
 
   // Wrap the file every day
-  if(loop_number % (SECONDS_PER_DAY / (LOOP_PERIOD_MILLIS / 1000)) == 0){
+  if(loop_number % (SECONDS_PER_DAY / (menu->get_sampling_period_ms() / 1000)) == 0){
     Serial.println(F("Wrapping the log File"));
   }
 
   // Log to file every N loops
-  if(loop_number % LOG_EVERY_N_LOOPS == 0) {
+  if(loop_number % menu->get_log_every_n_loops() == 0) {
     logfile->open_line(loop_number, loop_start_millis);
     sensors->log_all(&logfile->file);
     dust->log(&logfile->file);
     logfile->close_line();
   }
+
+  // Print glyph overlay for file status
+  lcd->setCursor(19,3);
+  if(logfile->is_sd_failed()){
+    lcd->write(byte(1));  // Dead File
+  } else {
+    lcd->write(byte(0));  // OK File
+  }
+
+  // todo: create warnings, or display AQI on last line, blink if bad?
+
   
   // Burn remainder of the loop period
-  while(millis() < loop_start_millis + LOOP_PERIOD_MILLIS) {
+  while(millis() < loop_start_millis + menu->get_sampling_period_ms()) {
     // Check that millis() hasn't wrapped
     if(loop_start_millis > millis()){
       //millis have wrapped - Should happen every 50 days, give or take
@@ -282,8 +178,10 @@ void loop() {
    
       Serial.println(F("Enter Menu"));
       delay(1000);  // debounce
-      enter_menu();
+      menu->enter_menu();
     }
   }// while(millis)
+
+  
   
 }
