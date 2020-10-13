@@ -27,17 +27,14 @@
  */
 /*
  * Current todo list:
- *   - Enable re-init and graceful init failure For the SD card (with display when failed)
+ *   - Refactor messy parts and clear out todo's
  *   - Display warnings and AQI
  *   - Set thresholds for warnings in menu
  *   - Collect baselines for values
- *   - Menu item to turn backlight off (when not in menu)
  *   - Calibrate particle sensor
  *   - expose programming cable to outside 
  *   - buy additional buttons(running low)
- *   - option to clear SD card
- *   - menu option to list/delete files
- *   - turn off lights with the menu (when menu is not selected)
+ *   - zero the dust sensor based on menu
  */
 
 byte file_ok_glyph[8] = 
@@ -118,6 +115,10 @@ void setup() {
   lcd->setCursor(0,0);
   lcd->write(byte(0));
   lcd->write(byte(1));
+  if(menu->get_backlight_config())
+    lcd->backlight();
+  else
+    lcd->noBacklight();
 
   Serial.println(F("Init done."));
 }
@@ -131,6 +132,9 @@ void loop() {
   // Serial log start
   Serial.print(loop_number++); Serial.print(F(" ----------- ")); Serial.println(loop_start_millis);
 
+  // Clear the LCD before sensing, which updates all the fields
+  lcd->clear(); //todo: make sure this doesn't make it too "flashy"
+
   // Collect and print sensor data to screen
   sensors->sense_all();
   sensors->log_all_serial_only();
@@ -143,20 +147,23 @@ void loop() {
     Serial.println(F("Wrapping the log File"));
   }
 
-  // Log to file every N loops
-  if(loop_number % menu->get_log_every_n_loops() == 0) {
-    logfile->open_line(loop_number, loop_start_millis);
-    sensors->log_all(&logfile->file);
-    dust->log(&logfile->file);
-    logfile->close_line();
-  }
-
-  // Print glyph overlay for file status
-  lcd->setCursor(19,3);
-  if(logfile->is_sd_failed()){
-    lcd->write(byte(1));  // Dead File
-  } else {
-    lcd->write(byte(0));  // OK File
+  // Log to file every N loops, if file logging is configured on
+  if(menu->get_logon_config()){
+    if(loop_number % menu->get_log_every_n_loops() == 0 &&
+        menu->get_logon_config()) {
+      logfile->open_line(loop_number, loop_start_millis);
+      sensors->log_all(&logfile->file);
+      dust->log(&logfile->file);
+      logfile->close_line();
+    }
+  
+    // Print glyph overlay for file status
+    lcd->setCursor(19,3);
+    if(logfile->is_sd_failed()){
+      lcd->write(byte(1));  // Dead File
+    } else {
+      lcd->write(byte(0));  // OK File
+    }
   }
 
   // todo: create warnings, or display AQI on last line, blink if bad?

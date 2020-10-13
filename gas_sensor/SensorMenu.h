@@ -9,16 +9,23 @@
 #define MENU_DN_BUTTON     5
 
 #define MENU_LENGTH 5
+// todo: this whole thing is hokey, and I should be defining these as menu item classes 
+//   and instantiating them with a factory pattern.
 const char menu_e[] PROGMEM = "EXIT     ";                  // 0
 const char menu_raw[]    PROGMEM = "Disp. Raw / Average";   // 1
 const char menu_file[]   PROGMEM = "File";                  // 2
 const char menu_sam[] PROGMEM = "Sampling Rate";            // 3
 const char menu_log[] PROGMEM = "File logging Rate";        // 4
+const char menu_back[] PROGMEM = "Toggle LCD Backlight";    // 5
+const char menu_logon[] PROGMEM = "Toggle file log";        // 6
 const char *const menu_line[] PROGMEM = {menu_e,    // 0: Exit
                                          menu_raw,  // 1: Raw or averaged data
                                          menu_file, // 2: Increment the file name 
                                          menu_sam,  // 3: Set sampling frequency
-                                         menu_log}; // 4: Set logging rate (every n samples)};
+                                         menu_log,  // 4: Set logging rate (every n samples)};
+                                         menu_back, // 5: Toggle LCD backlight
+                                         menu_logon // 6: Toggle logging to file
+                                         }; 
 #define DEFAULT_LOOP_PERIOD_MILLIS 2000  // every one second
 #define DEFAULT_LOG_EVERY_N_LOOPS    10  // every ten seconds
 
@@ -26,8 +33,10 @@ const char *const menu_line[] PROGMEM = {menu_e,    // 0: Exit
 struct settings_type{
   uint16_t sampling_period_ms = DEFAULT_LOOP_PERIOD_MILLIS;
   uint16_t log_every_n_loops = DEFAULT_LOG_EVERY_N_LOOPS;
-  bool log_raw = false;
   uint16_t file_number = 0;
+  bool log_raw = false;
+  bool backlight = true;
+  bool logging = true;
   uint16_t checksum = 0;
 
   uint16_t calc_checksum(){
@@ -35,6 +44,7 @@ struct settings_type{
                log_every_n_loops +
                log_raw +
                file_number + 
+               + backlight +
                198; // salt value to avoid all-zeros hazard 
   }
   void store_checksum(){
@@ -77,6 +87,8 @@ class SensorMenu{
       Serial.print(F("  log_every_n_loops: ")); Serial.println(this->config.log_every_n_loops);
       Serial.print(F("  log_raw (boolean): ")); Serial.println(this->config.log_raw);
       Serial.print(F("  file_number: ")); Serial.println(this->config.file_number);
+      Serial.print(F("  backlight: ")); Serial.println(this->config.backlight);
+      Serial.print(F("  logging: ")); Serial.println(this->config.logging);
       Serial.print(F("  checksum: ")); Serial.println(this->config.checksum);
       Serial.print(F("  calculated checksum: ")); Serial.println(this->config.calc_checksum());
     } else {
@@ -85,6 +97,8 @@ class SensorMenu{
       this->config.log_every_n_loops = DEFAULT_LOG_EVERY_N_LOOPS;
       this->config.log_raw = false;
       this->config.file_number = 0;
+      this->config.backlight = true;
+      this->config.logging = true;
       commit_config();  //write to EEPROM with valid checksum
     }
   }
@@ -102,6 +116,25 @@ class SensorMenu{
   uint16_t get_log_every_n_loops(){
     return this->config.log_every_n_loops;
   }
+
+  bool get_backlight_config(){
+    return this->config.backlight;
+  }
+
+  bool backlight_callback(){
+    this->config.backlight = !this->config.backlight;
+    return true;  // exit back out to main display
+  }
+
+  bool get_logon_config(){
+    return this->config.logging;
+  }
+
+  bool logon_callback(){
+    this->config.logging = !this->config.logging;
+    return true;  // exit back out to main display
+  }
+  
   void display_lograte_menu(){
     Serial.println(F("Entered log rate Callback"));
     lcd->clear();
@@ -276,6 +309,12 @@ class SensorMenu{
       case 4:
         rv = lograte_callback();
         break;
+      case 5:
+        rv = backlight_callback();
+        break;
+      case 6:
+        rv = logon_callback();
+        break;
       default:
         Serial.println(F("No function exists for this menu item"));
         return false;
@@ -285,31 +324,35 @@ class SensorMenu{
   }
   
   void enter_menu(){
-      uint8_t menu_pos = 0;
-      render_menu(menu_pos);  // render the menu at the start
-      // now
-      while(true){
-        // look for the up, down, or select buttons
-        if(digitalRead(MENU_UP_BUTTON)==LOW && menu_pos > 0){
-          menu_pos--;
+    lcd->backlight();
+    uint8_t menu_pos = 0;
+    render_menu(menu_pos);  // render the menu at the start
+    // now
+    while(true){
+      // look for the up, down, or select buttons
+      if(digitalRead(MENU_UP_BUTTON)==LOW && menu_pos > 0){
+        menu_pos--;
+        render_menu(menu_pos);
+        delay(200);
+      } else if(digitalRead(MENU_DN_BUTTON)==LOW && menu_pos < MENU_LENGTH-1){
+        menu_pos++;
+        render_menu(menu_pos);
+        delay(200);
+      } else if(digitalRead(MENU_SELECT_BUTTON)==LOW){
+        if(enter_menu_item(menu_pos)){
+          break;
+        }
+        else{
+          lcd->clear();
           render_menu(menu_pos);
-          delay(200);
-        } else if(digitalRead(MENU_DN_BUTTON)==LOW && menu_pos < MENU_LENGTH-1){
-          menu_pos++;
-          render_menu(menu_pos);
-          delay(200);
-        } else if(digitalRead(MENU_SELECT_BUTTON)==LOW){
-          if(enter_menu_item(menu_pos)){
-            break;
-          }
-          else{
-            lcd->clear();
-            render_menu(menu_pos);
-          }
         }
       }
-  
-      lcd->clear();
+    }
+    
+    if(!this->config.backlight)
+      lcd->noBacklight();  // turn off the backlight if it's configed off.
+    
+    lcd->clear();
   }
   
 };
