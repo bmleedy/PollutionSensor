@@ -38,17 +38,10 @@
  *   - zero the dust sensor based on menu
  */
 
-
-
 // Indices of LCD columns
 #define COL1 0
 #define COL2 10
-
-
 #define SECONDS_PER_DAY 86400
-
-
-
 
 LiquidCrystal_I2C * lcd = new LiquidCrystal_I2C(0x27,20,4);
 LogFile * logfile;
@@ -65,7 +58,6 @@ void setup() {
   pinMode(MENU_UP_BUTTON, INPUT_PULLUP);
   pinMode(MENU_DN_BUTTON, INPUT_PULLUP);
   
-
   Serial.println(F("Init LCD..."));
   lcd->init(); 
   lcd->backlight();
@@ -77,7 +69,7 @@ void setup() {
   //Args are: (Shortname, LCD_column, LCD_row, Ain_pin, averaging_rate) //
   sensors = new AnalogSensor(lcd);
   //sensors->add_sensor("Dust", COL1, 0, A0, 0.1);  // Particle Sensor todo: change this to particle sensor class
-  sensors->add_sensor(" Gas", COL1, 1, A1, 0.1);  // MQ5 - LPG, City Gas Leak
+  sensors->add_sensor(" LPG", COL1, 1, A1, 0.1);  // MQ5 - LPG, City Gas Leak
   sensors->add_sensor("  CO", COL1, 2, A6, 0.1);  // MQ7 - Carbon Monoxide
   sensors->add_sensor("Ozon", COL2, 0, A7, 0.1);  // MQ131 - Ozone
   sensors->add_sensor(" Gas", COL2, 1, A3, 0.1);  // Gas leaks
@@ -147,6 +139,7 @@ void loop() {
   }
 
   // todo: create warnings, or display AQI on last line, blink if bad?
+  // todo: compare threshold / settings from the menu with the readings from the sensors
 
   
   // Burn remainder of the loop period

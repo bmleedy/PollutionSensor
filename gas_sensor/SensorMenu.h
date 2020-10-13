@@ -11,32 +11,54 @@
 #define MENU_LENGTH 5
 // todo: this whole thing is hokey, and I should be defining these as menu item classes 
 //   and instantiating them with a factory pattern.
-const char menu_e[] PROGMEM = "EXIT     ";                  // 0
-const char menu_raw[]    PROGMEM = "Disp. Raw / Average";   // 1
-const char menu_file[]   PROGMEM = "File";                  // 2
-const char menu_sam[] PROGMEM = "Sampling Rate";            // 3
-const char menu_log[] PROGMEM = "File logging Rate";        // 4
-const char menu_back[] PROGMEM = "Toggle LCD Backlight";    // 5
-const char menu_logon[] PROGMEM = "Toggle file log";        // 6
-const char *const menu_line[] PROGMEM = {menu_e,    // 0: Exit
-                                         menu_raw,  // 1: Raw or averaged data
-                                         menu_file, // 2: Increment the file name 
-                                         menu_sam,  // 3: Set sampling frequency
-                                         menu_log,  // 4: Set logging rate (every n samples)};
-                                         menu_back, // 5: Toggle LCD backlight
-                                         menu_logon // 6: Toggle logging to file
-                                         }; 
+const char menu_e[]      PROGMEM = "EXIT     ";              // 0
+const char menu_raw[]    PROGMEM = "Disp. Raw / Average";    // 1
+const char menu_file[]   PROGMEM = "File";                   // 2
+const char menu_sam[]    PROGMEM = "Sampling Rate";          // 3
+const char menu_log[]    PROGMEM = "File logging Rate";      // 4
+const char menu_back[]   PROGMEM = "Toggle LCD Backlight";   // 5
+const char menu_logon[]  PROGMEM = "Toggle file log";        // 6
+const char menu_lpg[]    PROGMEM = "LPG Threshold";          // 7
+const char menu_co[]     PROGMEM = "CO Threshold";           // 8
+const char menu_ozone[]  PROGMEM = "Ozone Threshold";        // 9
+const char menu_gas[]    PROGMEM = "Gas Threshold";          // 10
+const char menu_poison[] PROGMEM = "Poison Threshold";       // 11
+const char menu_dust_z[] PROGMEM = "Dust Zero";              // 12
+
+const char *const menu_line[] PROGMEM = {menu_e,      //  0: Exit
+                                         menu_raw,    //  1: Raw or averaged data
+                                         menu_file,   //  2: Increment the file name 
+                                         menu_sam,    //  3: Set sampling frequency
+                                         menu_log,    //  4: Set logging rate (every n samples)};
+                                         menu_back,   //  5: Toggle LCD backlight
+                                         menu_logon,  //  6: Toggle logging to file
+                                         menu_lpg,    //  7: LPG Gas Sensor
+                                         menu_co,     //  8: Carbon Monoxide Sensor
+                                         menu_ozone,  //  9: Ozone Sensor
+                                         menu_gas,    // 10: Gas Sensor
+                                         menu_poison, // 11: Hazardous Gas Sensor
+                                         menu_dust_z, // 12: Dust sensor adjustment
+                                         };
+
 #define DEFAULT_LOOP_PERIOD_MILLIS 2000  // every one second
 #define DEFAULT_LOG_EVERY_N_LOOPS    10  // every ten seconds
-
 
 struct settings_type{
   uint16_t sampling_period_ms = DEFAULT_LOOP_PERIOD_MILLIS;
   uint16_t log_every_n_loops = DEFAULT_LOG_EVERY_N_LOOPS;
   uint16_t file_number = 0;
+
+  uint16_t dust_zero = 0;
+  uint16_t lpg_threshold = 800;
+  uint16_t co_threshold = 800;
+  uint16_t ozone_threshold = 800;
+  uint16_t gas_threshold = 800;
+  uint16_t hazard_threshold = 800;
+
   bool log_raw = false;
   bool backlight = true;
   bool logging = true;
+
   uint16_t checksum = 0;
 
   uint16_t calc_checksum(){
@@ -103,6 +125,43 @@ class SensorMenu{
     }
   }
 
+
+
+  bool display_sensor_setting(const char * name, uint16_t * setting){
+    lcd->clear();
+    lcd->setCursor(0, 0);
+    lcd->print(name);
+    lcd->setCursor(0, 1);
+    lcd->print(F("Setting : "));
+    lcd->print(*setting);
+    lcd->setCursor(0, 3);
+    lcd->print(F("Blue to exit."));
+  }
+
+
+  bool sensor_settings_callback(const char * name, uint16_t * setting){
+    Serial.print(F("Entered settings callback for ")); Serial.println(name);
+
+    this->display_sensor_setting(name, setting);
+
+    delay(1000);
+    while(true){
+      if(digitalRead(MENU_SELECT_BUTTON)==LOW){
+        commit_config();  //write to EEPROM before exiting
+        return false;
+      } else if(digitalRead(MENU_UP_BUTTON)==LOW){
+        *setting += 20;
+        this->display_sensor_setting(name, setting);
+        delay(200);
+      } else if(digitalRead(MENU_DN_BUTTON)==LOW){
+        if( *setting >= 20)
+          *setting -= 20;
+        this->display_sensor_setting(name, setting);
+        delay(200);
+      }
+    }
+  
+  }
 
   bool exit_callback(){
     return true;
@@ -294,27 +353,19 @@ class SensorMenu{
     Serial.print(F("entering menu item ")); Serial.println(id);
     bool rv = false;
     switch(id){
-      case 0:
-        rv = exit_callback();
-        break;
-      case 1:
-        rv = disp_callback();
-        break;
-      case 2:
-        rv = file_callback();
-        break;
-      case 3:
-        rv = sampling_callback();
-        break;
-      case 4:
-        rv = lograte_callback();
-        break;
-      case 5:
-        rv = backlight_callback();
-        break;
-      case 6:
-        rv = logon_callback();
-        break;
+      case 0:  rv = exit_callback(); break;
+      case 1:  rv = disp_callback(); break;
+      case 2:  rv = file_callback(); break;
+      case 3:  rv = sampling_callback(); break;
+      case 4:  rv = lograte_callback(); break;
+      case 5:  rv = backlight_callback(); break;
+      case 6:  rv = logon_callback(); break;
+      case 7:  rv = sensor_settings_callback("LPG", &this->config.lpg_threshold);    break;//  7: LPG Gas Sensor
+      case 8:  rv = sensor_settings_callback("CO",  &this->config.co_threshold);     break;//  8: Carbon Monoxide Sensor
+      case 9:  rv = sensor_settings_callback("O3",  &this->config.ozone_threshold);  break;//  9: Ozone Sensor
+      case 10: rv = sensor_settings_callback("GAS", &this->config.gas_threshold);    break;// 10: Gas Sensor
+      case 11: rv = sensor_settings_callback("HAZ", &this->config.hazard_threshold); break;// 11: Hazardous Gas Sensor
+      case 12: rv = sensor_settings_callback("PM",  &this->config.dust_zero);        break;// 12: Dust sensor adjustment
       default:
         Serial.println(F("No function exists for this menu item"));
         return false;
