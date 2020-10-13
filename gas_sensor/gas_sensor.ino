@@ -7,6 +7,7 @@
 #include "LogFile.h"
 #include "smoke_sensor.h"
 #include "SensorMenu.h"
+#include "custom_lcd_glyphs.h"
 
 /*------------------------------------
  * Gas sensor test harness
@@ -37,27 +38,6 @@
  *   - zero the dust sensor based on menu
  */
 
-byte file_ok_glyph[8] = 
-  {
-    B11110,
-    B10001,
-    B11111,
-    B10001,
-    B11111,
-    B10001,
-    B11111,
-  };
-
-byte file_bad_glyph[8] = 
-  {
-    B11110,
-    B10001,
-    B11011,
-    B10101,
-    B11011,
-    B10001,
-    B11111,
-  };
 
 
 // Indices of LCD columns
