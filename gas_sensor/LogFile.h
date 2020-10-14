@@ -9,6 +9,7 @@
 #define MAX_FILENAME_LEN 12 //todo: check that max filename is larger than base name plus extensions
 const char log_file_name_base[] = "LOG";
 #define LOGFILE_EXTENSION "CSV"
+#define SD_COOLDOWN_LENGTH 5000 // milliseconds
 
 class LogFile{
   char current_name[MAX_FILENAME_LEN]; 
@@ -16,6 +17,7 @@ class LogFile{
   bool sd_failure = true;
   uint16_t file_failure_count = 0;
   uint16_t sd_failure_count = 0;
+  uint16_t cooldown_start_millis = 0;
 
  public:
   File file;  //todo: make not public

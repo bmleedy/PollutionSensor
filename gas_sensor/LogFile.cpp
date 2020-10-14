@@ -7,6 +7,19 @@ LogFile::LogFile(){
 }
 
 bool LogFile::re_init_sd(){
+
+  // don't try to re-init if 
+  if( (millis() > this->cooldown_start_millis) &&                        // millis hasn't wrapped
+      (millis() - this->cooldown_start_millis < SD_COOLDOWN_LENGTH) &&   // we've waited for the cooldown
+      (this->cooldown_start_millis != 0)                                 // we've run this once at least
+    ) 
+  {
+    return this->sd_failure;
+  } else {
+    this->cooldown_start_millis = millis();  // we  ran, so reset cooldown start.
+  }
+
+  
   // Init the SD card
   pinMode(10, OUTPUT);
   Serial.println(F("LogFile: Init SD card..."));

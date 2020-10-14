@@ -4,11 +4,11 @@
 
 
 // Menu Buttons
-#define MENU_SELECT_BUTTON 7
+#define MENU_SELECT_BUTTON 8
 #define MENU_UP_BUTTON     6
 #define MENU_DN_BUTTON     5
 
-#define MENU_LENGTH 5
+#define MENU_LENGTH 13
 // todo: this whole thing is hokey, and I should be defining these as menu item classes 
 //   and instantiating them with a factory pattern.
 const char menu_e[]      PROGMEM = "EXIT     ";              // 0
@@ -125,7 +125,14 @@ class SensorMenu{
     }
   }
 
-
+  void wait_for_button_up(){
+    while(digitalRead(MENU_SELECT_BUTTON)==LOW || 
+          digitalRead(MENU_UP_BUTTON)==LOW ||
+          digitalRead(MENU_DN_BUTTON)==LOW){
+            // do nothing until all buttons released for at least one cycle
+            delay(1);
+          }
+  }
 
   bool display_sensor_setting(const char * name, uint16_t * setting){
     lcd->clear();
@@ -144,20 +151,21 @@ class SensorMenu{
 
     this->display_sensor_setting(name, setting);
 
-    delay(1000);
+    wait_for_button_up();
     while(true){
       if(digitalRead(MENU_SELECT_BUTTON)==LOW){
         commit_config();  //write to EEPROM before exiting
+        wait_for_button_up();
         return false;
       } else if(digitalRead(MENU_UP_BUTTON)==LOW){
-        *setting += 20;
+        *                         setting += 20;
         this->display_sensor_setting(name, setting);
-        delay(200);
+        wait_for_button_up();
       } else if(digitalRead(MENU_DN_BUTTON)==LOW){
         if( *setting >= 20)
           *setting -= 20;
         this->display_sensor_setting(name, setting);
-        delay(200);
+        wait_for_button_up();
       }
     }
   
@@ -182,6 +190,7 @@ class SensorMenu{
 
   bool backlight_callback(){
     this->config.backlight = !this->config.backlight;
+    commit_config();
     return true;  // exit back out to main display
   }
 
@@ -191,6 +200,7 @@ class SensorMenu{
 
   bool logon_callback(){
     this->config.logging = !this->config.logging;
+    commit_config();
     return true;  // exit back out to main display
   }
   
@@ -210,20 +220,21 @@ class SensorMenu{
   
   bool lograte_callback(){
       display_lograte_menu();
-      delay(1000);
+      wait_for_button_up();
       while(true){
         if(digitalRead(MENU_SELECT_BUTTON)==LOW){
           commit_config();  //write to EEPROM before exiting
+          wait_for_button_up();
           return false;
         } else if(digitalRead(MENU_UP_BUTTON)==LOW){
           this->config.log_every_n_loops++;
           this->display_lograte_menu();
-          delay(500);
+          wait_for_button_up();
         } else if(digitalRead(MENU_DN_BUTTON)==LOW){
           if( this->config.sampling_period_ms > 1)
             this->config.log_every_n_loops--;
           this->display_lograte_menu();
-          delay(500);
+          wait_for_button_up();
         }
       }
   }
@@ -246,20 +257,21 @@ class SensorMenu{
   
   bool sampling_callback(){
       display_sampling_menu();
-      delay(1000);
+      wait_for_button_up();
       while(true){
         if(digitalRead(MENU_SELECT_BUTTON)==LOW){
           commit_config();  //write to EEPROM before exiting
+          wait_for_button_up();
           return false;
         } else if(digitalRead(MENU_UP_BUTTON)==LOW){
           this->config.sampling_period_ms += 500;
           this->display_sampling_menu();
-          delay(500);
+          wait_for_button_up();
         } else if(digitalRead(MENU_DN_BUTTON)==LOW){
           if( this->config.sampling_period_ms >= 1000)
             this->config.sampling_period_ms -= 500;
           this->display_sampling_menu();
-          delay(500);
+          wait_for_button_up();
         }
       }
   }
@@ -285,15 +297,16 @@ class SensorMenu{
   
   bool file_callback(){
       display_file_menu();
-      delay(1000);
+      wait_for_button_up();
       while(true){
       if(digitalRead(MENU_SELECT_BUTTON)==LOW){
         // commit_config();  //write to EEPROM before exiting
+        wait_for_button_up();
         return false;
       } else if(digitalRead(MENU_UP_BUTTON)==LOW || digitalRead(MENU_DN_BUTTON)==LOW){
         logfile->rotate_file();
         display_file_menu();
-        delay(500); // wait a  moment to check again
+        wait_for_button_up();
       }
     }
   }
@@ -320,6 +333,7 @@ class SensorMenu{
       if(digitalRead(MENU_SELECT_BUTTON)==LOW){
         dust->set_display_raw(display_raw);
         sensors->set_display_raw(display_raw);
+        wait_for_button_up();
         return false;
       } else if(digitalRead(MENU_UP_BUTTON)==LOW || digitalRead(MENU_DN_BUTTON)==LOW){
         display_raw = !display_raw;
@@ -328,7 +342,7 @@ class SensorMenu{
           lcd->print(F("Raw    "));
         else
           lcd->print(F("Average"));
-        delay(500); // wait a  moment to check again
+        wait_for_button_up(); // wait a  moment to check again
       }
     }
   }
@@ -349,7 +363,6 @@ class SensorMenu{
   }
   
   bool enter_menu_item(uint8_t id){
-    delay(1000);
     Serial.print(F("entering menu item ")); Serial.println(id);
     bool rv = false;
     switch(id){
@@ -370,7 +383,6 @@ class SensorMenu{
         Serial.println(F("No function exists for this menu item"));
         return false;
     }
-    delay(1000);
     return rv;
   }
   
@@ -384,11 +396,11 @@ class SensorMenu{
       if(digitalRead(MENU_UP_BUTTON)==LOW && menu_pos > 0){
         menu_pos--;
         render_menu(menu_pos);
-        delay(200);
+        wait_for_button_up();
       } else if(digitalRead(MENU_DN_BUTTON)==LOW && menu_pos < MENU_LENGTH-1){
         menu_pos++;
         render_menu(menu_pos);
-        delay(200);
+        wait_for_button_up();
       } else if(digitalRead(MENU_SELECT_BUTTON)==LOW){
         if(enter_menu_item(menu_pos)){
           break;

@@ -22,15 +22,16 @@
  ** MQ-9 - Gas leaks - https://wiki.seeedstudio.com/Grove-Gas_Sensor-MQ9/
  ** MQ-131 - Ozone - https://www.sparkfun.com/products/17051
  * MQ-135 - Harmful Gasses https://components101.com/sensors/mq135-gas-sensor-for-air-quality
- ** ! MQ-136 - Hydrogen Sulfide - https://www.sparkfun.com/products/17052
+ ** ! MQ-136 - Hydrogen Sulfide - https://www.sparkfun.com/products/17052 (spare one in yellow box)
  ** ! MQ-137 - Ammonia - https://www.sparkfun.com/products/17053 
  * ! Multi-channel gas sensor: https://wiki.seeedstudio.com/Grove-Multichannel_Gas_Sensor/
  */
 /*
  * Current todo list:
+ *   - Test and fix all menu functionality
  *   - Refactor messy parts and clear out todo's
  *   - Display warnings and AQI
- *   - Set thresholds for warnings in menu
+ *   - Add warnings based on thresholds to the screen
  *   - Collect baselines for values
  *   - Calibrate particle sensor
  *   - expose programming cable to outside 
@@ -72,7 +73,7 @@ void setup() {
   sensors->add_sensor(" LPG", COL1, 1, A1, 0.1);  // MQ5 - LPG, City Gas Leak
   sensors->add_sensor("  CO", COL1, 2, A6, 0.1);  // MQ7 - Carbon Monoxide
   sensors->add_sensor("Ozon", COL2, 0, A7, 0.1);  // MQ131 - Ozone
-  sensors->add_sensor(" Gas", COL2, 1, A3, 0.1);  // Gas leaks
+  sensors->add_sensor(" Gas", COL2, 1, A3, 0.1);  // MP9 Gas leaks
   sensors->add_sensor(" Haz", COL2, 2, A2, 0.1);  // MQ135Poison Gasses (organic)
  
   Serial.println(F("Init Particle Sensor..."));
@@ -93,6 +94,18 @@ void setup() {
     lcd->noBacklight();
 
   Serial.println(F("Init done."));
+}
+
+void check_menu(){
+  // Run the menu.  Stop logging and sampling if the menu is activated
+  if(digitalRead(MENU_SELECT_BUTTON) == LOW || 
+     digitalRead(MENU_UP_BUTTON) == LOW ||
+     digitalRead(MENU_DN_BUTTON) == LOW){
+ 
+    Serial.println(F("Enter Menu"));
+    delay(1000);  // debounce
+    menu->enter_menu();
+  }
 }
 
 uint32_t loop_number = 0;
@@ -141,6 +154,8 @@ void loop() {
   // todo: create warnings, or display AQI on last line, blink if bad?
   // todo: compare threshold / settings from the menu with the readings from the sensors
 
+
+  check_menu();
   
   // Burn remainder of the loop period
   while(millis() < loop_start_millis + menu->get_sampling_period_ms()) {
@@ -151,15 +166,7 @@ void loop() {
       break;
     }
 
-    // Run the menu.  Stop logging and sampling if the menu is activated
-    if(digitalRead(MENU_SELECT_BUTTON) == LOW || 
-       digitalRead(MENU_UP_BUTTON) == LOW ||
-       digitalRead(MENU_DN_BUTTON) == LOW){
-   
-      Serial.println(F("Enter Menu"));
-      delay(1000);  // debounce
-      menu->enter_menu();
-    }
+    check_menu();
   }// while(millis)
 
   
