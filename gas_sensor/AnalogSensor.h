@@ -13,6 +13,7 @@ struct sensor_config {
   uint8_t display_column = 0;
   uint8_t display_row = 0;
   uint8_t analog_pin = A0;
+  uint16_t zero_adjust = 0;
 };
 
 struct sensor_state {
@@ -42,5 +43,9 @@ public:
   void log_serial(uint8_t id);
   void update_lcd();
   void set_display_raw(bool display_raw);
+  void set_zero(uint8_t sensor_id, uint16_t zero_adjust);
+  uint16_t get_sensor_avg(uint8_t sensor_id);
+  uint8_t get_num_sensors(){return num_sensors;}
+  char * get_short_name(uint8_t i){return config[i].short_name;}
 };
 #endif

@@ -29,6 +29,7 @@ void AnalogSensor::add_sensor(const char short_name[SHORT_NAME_LEN],
   pinMode(analog_pin, INPUT);
 
   this->num_sensors++; // mark this sensor as inited
+  Serial.print (short_name); Serial.println(F(" added!"));
 }
 
 
@@ -98,4 +99,17 @@ void AnalogSensor::log_serial(uint8_t id){
   Serial.print(this->state[id].avg_value, 1);
   Serial.print(F(" | last: "));
   Serial.println(this->state[id].last_value);
+}
+
+
+void AnalogSensor::set_zero(uint8_t sensor_id, uint16_t zero_adjust){
+  if(this->config[sensor_id].zero_adjust != zero_adjust){
+    Serial.print(F("setting sensor ")); Serial.print(sensor_id);
+    Serial.print(F(" zero adjust to ")); Serial.println(zero_adjust);
+    this->config[sensor_id].zero_adjust = zero_adjust;
+  }
+}
+
+uint16_t AnalogSensor::get_sensor_avg(uint8_t sensor_id){
+  return this->state[sensor_id].avg_value;
 }

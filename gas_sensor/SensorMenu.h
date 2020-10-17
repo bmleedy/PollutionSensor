@@ -8,7 +8,9 @@
 #define MENU_UP_BUTTON     6
 #define MENU_DN_BUTTON     5
 
-#define MENU_LENGTH 13
+#define MAX_SENSORS        8
+
+#define MENU_LENGTH 14
 // todo: this whole thing is hokey, and I should be defining these as menu item classes 
 //   and instantiating them with a factory pattern.
 const char menu_e[]      PROGMEM = "EXIT     ";              // 0
@@ -24,6 +26,7 @@ const char menu_ozone[]  PROGMEM = "Ozone Threshold";        // 9
 const char menu_gas[]    PROGMEM = "Gas Threshold";          // 10
 const char menu_poison[] PROGMEM = "Poison Threshold";       // 11
 const char menu_dust_z[] PROGMEM = "Dust Zero";              // 12
+const char menu_sens_t[] PROGMEM = "Sensor Type";            // 13
 
 const char *const menu_line[] PROGMEM = {menu_e,      //  0: Exit
                                          menu_raw,    //  1: Raw or averaged data
@@ -38,6 +41,7 @@ const char *const menu_line[] PROGMEM = {menu_e,      //  0: Exit
                                          menu_gas,    // 10: Gas Sensor
                                          menu_poison, // 11: Hazardous Gas Sensor
                                          menu_dust_z, // 12: Dust sensor adjustment
+                                         menu_sens_t  // 13: Sensor configuration type
                                          };
 
 #define DEFAULT_LOOP_PERIOD_MILLIS 2000  // every one second
@@ -49,15 +53,13 @@ struct settings_type{
   uint16_t file_number = 0;
 
   uint16_t dust_zero = 0;
-  uint16_t lpg_threshold = 800;
-  uint16_t co_threshold = 800;
-  uint16_t ozone_threshold = 800;
-  uint16_t gas_threshold = 800;
-  uint16_t hazard_threshold = 800;
+  uint16_t sensor_thresholds[MAX_SENSORS];
+  uint16_t sensor_zeros[MAX_SENSORS];
 
   bool log_raw = false;
   bool backlight = true;
   bool logging = true;
+  bool alt_sensor_config = false;
 
   uint16_t checksum = 0;
 
@@ -66,7 +68,8 @@ struct settings_type{
                log_every_n_loops +
                log_raw +
                file_number + 
-               + backlight +
+               backlight +
+               alt_sensor_config +
                198; // salt value to avoid all-zeros hazard 
   }
   void store_checksum(){
@@ -75,44 +78,47 @@ struct settings_type{
   bool check(){
     return (checksum == calc_checksum());
   }
+  void dump(){
+    Serial.println(F("Configuration:"));
+    Serial.print(F("  sampling_period_ms: ")); Serial.println(this->sampling_period_ms);
+    Serial.print(F("  log_every_n_loops: ")); Serial.println(this->log_every_n_loops);
+    Serial.print(F("  log_raw (boolean): ")); Serial.println(this->log_raw);
+    Serial.print(F("  file_number: ")); Serial.println(this->file_number);
+    Serial.print(F("  backlight: ")); Serial.println(this->backlight);
+    Serial.print(F("  logging: ")); Serial.println(this->logging);
+    Serial.print(F("  checksum: ")); Serial.println(this->checksum);
+    Serial.print(F("  alt_sensor_config: ")); Serial.println(this->alt_sensor_config);
+    Serial.print(F("  calculated checksum: ")); Serial.println(this->calc_checksum());
+  }
 };
 
 
 
 class SensorMenu{
-  LiquidCrystal_I2C * lcd;
-  LogFile * logfile;
-  AnalogSensor * sensors;
-  SmokeSensor * dust;
+  LiquidCrystal_I2C * lcd = NULL;
+  LogFile * logfile = NULL;  // todo: only show this menu if logfile is not null
+  AnalogSensor * sensors = NULL;  //todo: load basic menu based on analog sensors loaded
+  SmokeSensor * dust = NULL;  //todo: only display menu items if not null
   uint8_t col1, col2;
   settings_type config;
 
  public:
   SensorMenu(LiquidCrystal_I2C * lcd,
-                LogFile * logfile,
-                AnalogSensor * sensors,
-                SmokeSensor * dust,
-                uint8_t col1_idx,
-                uint8_t col2_idx){
+             uint8_t col1_idx,
+             uint8_t col2_idx){
+
     this->lcd = lcd;
-    this->logfile = logfile;
-    this->sensors = sensors;
-    this->dust = dust;
     this->col1 = col1_idx;
     this->col2 = col2_idx;
+
+    for(int i=0; i<MAX_SENSORS; i++){
+      config.sensor_zeros[i] = 0;  // todo: define these based on menu options
+    }
 
     // retrieve config values from the EEPROM
     EEPROM.get(0, this->config);
     if(this->config.check()){
-      Serial.println(F("Configuration Loaded:"));
-      Serial.print(F("  sampling_period_ms: ")); Serial.println(this->config.sampling_period_ms);
-      Serial.print(F("  log_every_n_loops: ")); Serial.println(this->config.log_every_n_loops);
-      Serial.print(F("  log_raw (boolean): ")); Serial.println(this->config.log_raw);
-      Serial.print(F("  file_number: ")); Serial.println(this->config.file_number);
-      Serial.print(F("  backlight: ")); Serial.println(this->config.backlight);
-      Serial.print(F("  logging: ")); Serial.println(this->config.logging);
-      Serial.print(F("  checksum: ")); Serial.println(this->config.checksum);
-      Serial.print(F("  calculated checksum: ")); Serial.println(this->config.calc_checksum());
+      this->config.dump();
     } else {
       Serial.println(F("Checksum failed! Writing default config."));
       this->config.sampling_period_ms = DEFAULT_LOOP_PERIOD_MILLIS;
@@ -123,6 +129,22 @@ class SensorMenu{
       this->config.logging = true;
       commit_config();  //write to EEPROM with valid checksum
     }
+  }
+
+  uint16_t get_sensor_threshold(uint8_t id){
+    return this->config.sensor_thresholds[id];
+  }
+
+  void attach_logfile(LogFile * logfile){
+    this->logfile = logfile;
+  }
+
+  void attach_dust_sensor(SmokeSensor * dust){
+    this->dust = dust;
+  }
+
+  void attach_analog_sensors(AnalogSensor * sensors){
+    this->sensors = sensors;
   }
 
   void wait_for_button_up(){
@@ -202,6 +224,30 @@ class SensorMenu{
     this->config.logging = !this->config.logging;
     commit_config();
     return true;  // exit back out to main display
+  }
+
+  bool sensor_t_callback(){
+    if(this->config.alt_sensor_config)
+      this->config.alt_sensor_config = false;
+    else
+      this->config.alt_sensor_config = true;
+    commit_config();
+    lcd->clear();
+    lcd->setCursor(0,0);
+    lcd->print(F("Restart in "));
+    for(int i=3; i>=0; i--){
+      lcd->print(i);
+      lcd->print(".");
+      delay(1000);
+    }
+    // This is heavy-handed, but we need to re-instantiate all sensors
+    // plus restart logging.
+    void(* resetFunc) (void) = 0;
+    resetFunc();
+  }
+
+  bool is_alternate_config(){
+    return this->config.alt_sensor_config;
   }
   
   void display_lograte_menu(){
@@ -373,12 +419,13 @@ class SensorMenu{
       case 4:  rv = lograte_callback(); break;
       case 5:  rv = backlight_callback(); break;
       case 6:  rv = logon_callback(); break;
-      case 7:  rv = sensor_settings_callback("LPG", &this->config.lpg_threshold);    break;//  7: LPG Gas Sensor
-      case 8:  rv = sensor_settings_callback("CO",  &this->config.co_threshold);     break;//  8: Carbon Monoxide Sensor
-      case 9:  rv = sensor_settings_callback("O3",  &this->config.ozone_threshold);  break;//  9: Ozone Sensor
-      case 10: rv = sensor_settings_callback("GAS", &this->config.gas_threshold);    break;// 10: Gas Sensor
-      case 11: rv = sensor_settings_callback("HAZ", &this->config.hazard_threshold); break;// 11: Hazardous Gas Sensor
+      case 7:  rv = sensor_settings_callback("LPG", &this->config.sensor_thresholds[0]);    break;//  7: LPG Gas Sensor
+      case 8:  rv = sensor_settings_callback("CO",  &this->config.sensor_thresholds[1]);     break;//  8: Carbon Monoxide Sensor
+      case 9:  rv = sensor_settings_callback("O3",  &this->config.sensor_thresholds[2]);  break;//  9: Ozone Sensor
+      case 10: rv = sensor_settings_callback("GAS", &this->config.sensor_thresholds[3]);    break;// 10: Gas Sensor
+      case 11: rv = sensor_settings_callback("HAZ", &this->config.sensor_thresholds[4]); break;// 11: Hazardous Gas Sensor
       case 12: rv = sensor_settings_callback("PM",  &this->config.dust_zero);        break;// 12: Dust sensor adjustment
+      case 13: rv = sensor_t_callback();  break;// 13: toggle the set of sensors I'll use on next restart
       default:
         Serial.println(F("No function exists for this menu item"));
         return false;

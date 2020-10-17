@@ -28,10 +28,10 @@
  */
 /*
  * Current todo list:
- *   - Test and fix all menu functionality
  *   - Refactor messy parts and clear out todo's
  *   - Display warnings and AQI
  *   - Add warnings based on thresholds to the screen
+ *   - 
  *   - Collect baselines for values
  *   - Calibrate particle sensor
  *   - expose programming cable to outside 
@@ -42,56 +42,71 @@
 // Indices of LCD columns
 #define COL1 0
 #define COL2 10
+
+// Constants
 #define SECONDS_PER_DAY 86400
 
-LiquidCrystal_I2C * lcd = new LiquidCrystal_I2C(0x27,20,4);
+// Classes for main components
+LiquidCrystal_I2C * lcd;
 LogFile * logfile;
 AnalogSensor * sensors;  // container for all the sensors I configure
 SmokeSensor * dust;
 SensorMenu * menu;
 
 void setup() {
+  
+  // Init Serial port
   Serial.begin(115200);
-  while (!Serial);
+  while (!Serial); // Wait for it to be initialized.
 
-  Serial.println(F("Init menu Pins..."));
+  Serial.println(F("Init Pins..."));
   pinMode(MENU_SELECT_BUTTON, INPUT_PULLUP);
   pinMode(MENU_UP_BUTTON, INPUT_PULLUP);
   pinMode(MENU_DN_BUTTON, INPUT_PULLUP);
   
   Serial.println(F("Init LCD..."));
+  lcd = new LiquidCrystal_I2C(0x27,20,4);
   lcd->init(); 
   lcd->backlight();
   lcd->clear();
   lcd->createChar(0, file_ok_glyph);
   lcd->createChar(1, file_bad_glyph);
-
-  Serial.println(F("Init gas Sensors..."));
-  //Args are: (Shortname, LCD_column, LCD_row, Ain_pin, averaging_rate) //
-  sensors = new AnalogSensor(lcd);
-  //sensors->add_sensor("Dust", COL1, 0, A0, 0.1);  // Particle Sensor todo: change this to particle sensor class
-  sensors->add_sensor(" LPG", COL1, 1, A1, 0.1);  // MQ5 - LPG, City Gas Leak
-  sensors->add_sensor("  CO", COL1, 2, A6, 0.1);  // MQ7 - Carbon Monoxide
-  sensors->add_sensor("Ozon", COL2, 0, A7, 0.1);  // MQ131 - Ozone
-  sensors->add_sensor(" Gas", COL2, 1, A3, 0.1);  // MP9 Gas leaks
-  sensors->add_sensor(" Haz", COL2, 2, A2, 0.1);  // MQ135Poison Gasses (organic)
- 
-  Serial.println(F("Init Particle Sensor..."));
-  dust = new SmokeSensor(A0, 4, lcd, COL1, 0);
-
-  Serial.println(F("Init Logfile..."));
-  logfile = new LogFile();
-
-  Serial.println(F("Init sensor menu..."));
-  menu = new SensorMenu(lcd, logfile, sensors, dust, COL1, COL2);
-
   lcd->setCursor(0,0);
-  lcd->write(byte(0));
-  lcd->write(byte(1));
   if(menu->get_backlight_config())
     lcd->backlight();
   else
     lcd->noBacklight();
+
+  Serial.println(F("Init sensor menu..."));
+  menu = new SensorMenu(lcd, COL1, COL2);
+
+  Serial.println(F("Init gas Sensors..."));
+  sensors = new AnalogSensor(lcd);
+  if(!menu->is_alternate_config()){
+    //Args are: (Shortname, LCD_column, LCD_row, Ain_pin, averaging_rate) //
+    sensors->add_sensor(" LPG", COL1, 1, A1, 0.1);  // MQ5 - LPG, City Gas Leak
+    sensors->add_sensor("  CO", COL1, 2, A6, 0.1);  // MQ7 - Carbon Monoxide
+    sensors->add_sensor("Ozon", COL2, 0, A7, 0.1);  // MQ131 - Ozone
+    sensors->add_sensor(" Gas", COL2, 1, A3, 0.1);  // MP9 Gas leaks
+    sensors->add_sensor(" Haz", COL2, 2, A2, 0.1);  // MQ135Poison Gasses (organic)
+    Serial.println(F("Init Particle Sensor..."));
+    dust = new SmokeSensor(A0, 4, lcd, COL1, 0);
+    menu->attach_dust_sensor(dust);
+  } else {
+    sensors->add_sensor("MQ2 ", COL1, 1, A0, 0.1);  // MQ2 - smoke
+    sensors->add_sensor("MQ7 ", COL1, 2, A1, 0.1);  // MQ7 - Carbon Monoxide
+    sensors->add_sensor("MQ4 ", COL2, 0, A2, 0.1);  // MQ4 - Methane (CNG)
+    sensors->add_sensor("MQ6 ", COL2, 1, A3, 0.1);  // MQ-6 - LPG, iso-butane, propane
+    sensors->add_sensor("MQ8 ", COL2, 2, A6, 0.1);  // MQ-8 - Hydrogen
+    sensors->add_sensor("M137", COL1, 0, A7, 0.1);  // MQ-137 - Ammonia
+    Serial.println(F("No Particle Sensor in config!"));
+    dust = NULL;
+  }
+  menu->attach_analog_sensors(sensors);
+
+  Serial.println(F("Init Logfile..."));
+  logfile = new LogFile();
+  menu->attach_logfile(logfile);
 
   Serial.println(F("Init done."));
 }
@@ -123,8 +138,11 @@ void loop() {
   // Collect and print sensor data to screen
   sensors->sense_all();
   sensors->log_all_serial_only();
-  dust->sense();
-  dust->log_serial();
+  if(dust != NULL){
+    dust->sense();
+    dust->log_serial();
+  }
+  
 
 
   // Wrap the file every day
@@ -138,7 +156,7 @@ void loop() {
         menu->get_logon_config()) {
       logfile->open_line(loop_number, loop_start_millis);
       sensors->log_all(&logfile->file);
-      dust->log(&logfile->file);
+      if(dust != NULL){dust->log(&logfile->file);}
       logfile->close_line();
     }
   
@@ -153,9 +171,17 @@ void loop() {
 
   // todo: create warnings, or display AQI on last line, blink if bad?
   // todo: compare threshold / settings from the menu with the readings from the sensors
-
+  for(uint8_t sensor_id = 0; sensor_id < sensors->get_num_sensors(); sensor_id++){
+    if(sensors->get_sensor_avg(sensor_id) > menu->get_sensor_threshold(sensor_id)){
+      lcd->setCursor(COL1, 3);
+      lcd->print(sensors->get_short_name(sensor_id));
+      lcd->print(F(" WARNING"));
+    }
+  }
 
   check_menu();
+
+  // Set sensor zeros, based on menu adjustments
   
   // Burn remainder of the loop period
   while(millis() < loop_start_millis + menu->get_sampling_period_ms()) {
