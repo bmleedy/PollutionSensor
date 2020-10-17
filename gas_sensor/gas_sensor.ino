@@ -176,6 +176,7 @@ void loop() {
       lcd->setCursor(COL1, 3);
       lcd->print(sensors->get_short_name(sensor_id));
       lcd->print(F(" WARNING"));
+      break;  // only have room to print one.
     }
   }
 
