@@ -28,30 +28,28 @@
  */
 /*
  * Current todo list:
- *   - Refactor messy parts and clear out todo's
- *   - Display warnings and AQI
- *   - Add warnings based on thresholds to the screen
- *   - 
  *   - Collect baselines for values
  *   - Calibrate particle sensor
- *   - expose programming cable to outside 
- *   - buy additional buttons(running low)
- *   - zero the dust sensor based on menu
  */
 
 // Indices of LCD columns
-#define COL1 0
+#define COL1  0
 #define COL2 10
+
+// LCD Glyph ID's for this sketch
+#define FILE_OK_GLYPH  0
+#define FILE_BAD_GLYPH 1
+#define SKULL_GLYPH    2
 
 // Constants
 #define SECONDS_PER_DAY 86400
 
 // Classes for main components
 LiquidCrystal_I2C * lcd;
-LogFile * logfile;
-AnalogSensor * sensors;  // container for all the sensors I configure
-SmokeSensor * dust;
-SensorMenu * menu;
+LogFile           * logfile;
+AnalogSensor      * sensors;  // container for all the sensors I configure
+SmokeSensor       * dust;
+SensorMenu        * menu;
 
 void setup() {
   
@@ -69,8 +67,9 @@ void setup() {
   lcd->init(); 
   lcd->backlight();
   lcd->clear();
-  lcd->createChar(0, file_ok_glyph);
-  lcd->createChar(1, file_bad_glyph);
+  lcd->createChar(FILE_OK_GLYPH, file_ok_glyph);
+  lcd->createChar(FILE_BAD_GLYPH, file_bad_glyph);
+  lcd->createChar(SKULL_GLYPH, skull_glyph);
   lcd->setCursor(0,0);
   if(menu->get_backlight_config())
     lcd->backlight();
@@ -133,7 +132,7 @@ void loop() {
   Serial.print(loop_number++); Serial.print(F(" ----------- ")); Serial.println(loop_start_millis);
 
   // Clear the LCD before sensing, which updates all the fields
-  lcd->clear(); //todo: make sure this doesn't make it too "flashy"
+  lcd->clear();
 
   // Collect and print sensor data to screen
   sensors->sense_all();
@@ -163,9 +162,9 @@ void loop() {
     // Print glyph overlay for file status
     lcd->setCursor(19,3);
     if(logfile->is_sd_failed()){
-      lcd->write(byte(1));  // Dead File
+      lcd->write(byte(FILE_BAD_GLYPH));  // Dead File
     } else {
-      lcd->write(byte(0));  // OK File
+      lcd->write(byte(FILE_OK_GLYPH));  // OK File
     }
   }
 
@@ -175,7 +174,8 @@ void loop() {
     if(sensors->get_sensor_avg(sensor_id) > menu->get_sensor_threshold(sensor_id)){
       lcd->setCursor(COL1, 3);
       lcd->print(sensors->get_short_name(sensor_id));
-      lcd->print(F(" WARNING"));
+      lcd->print(F(" WARNING "));
+      lcd->write(byte(SKULL_GLYPH));
       break;  // only have room to print one.
     }
   }
