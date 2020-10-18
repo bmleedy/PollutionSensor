@@ -6,7 +6,7 @@
 #include <SD.h>
 #include <EEPROM.h>
 
-#define MAX_FILENAME_LEN 12 //todo: check that max filename is larger than base name plus extensions
+#define MAX_FILENAME_LEN 12 // filenames can be a maximum of 8 characters for FAT
 const char log_file_name_base[] = "LOG";
 #define LOGFILE_EXTENSION "CSV"
 #define SD_COOLDOWN_LENGTH 5000 // milliseconds
@@ -18,9 +18,9 @@ class LogFile{
   uint16_t file_failure_count = 0;
   uint16_t sd_failure_count = 0;
   uint16_t cooldown_start_millis = 0;
+  File file;  //todo: make not public
 
  public:
-  File file;  //todo: make not public
   LogFile();
   void rotate_file();
   void open_line(uint16_t id, uint16_t timestamp);
@@ -29,6 +29,7 @@ class LogFile{
   char * get_file_name_ptr();
   bool re_init_sd();
   bool is_sd_failed();
+  File * get_file_ptr();
   
 
  private:

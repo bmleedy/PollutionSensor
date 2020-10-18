@@ -1,14 +1,13 @@
 #include "LogFile.h"
 
-// todo: make this not hacky and crappy
+//todo: create unit tests, especially for string manipulation, which scares me.
 
 LogFile::LogFile(){
   this->re_init_sd();
 }
 
 bool LogFile::re_init_sd(){
-
-  // don't try to re-init if 
+  // don't try to re-init if cooldown has not expired
   if( (millis() > this->cooldown_start_millis) &&                        // millis hasn't wrapped
       (millis() - this->cooldown_start_millis < SD_COOLDOWN_LENGTH) &&   // we've waited for the cooldown
       (this->cooldown_start_millis != 0)                                 // we've run this once at least
@@ -68,7 +67,7 @@ void LogFile::open_line(uint16_t id, uint16_t timestamp){
     Serial.println(F("error opening log file:"));
     Serial.println(this->current_name);
     Serial.println(this->file);
-    this->sd_failure = true;  //todo: will  this cause problems?
+    this->sd_failure = true;
   }
 
   this->file.print(id);
@@ -116,7 +115,7 @@ uint16_t LogFile::get_highest_used_id(){
       continue;  //different base name - ignore
     } 
         
-    token = strtok(NULL, ".");  // todo: can this just be next_token?
+    token = strtok(NULL, ".");
     // convert and compare the number token (if found)
     uint16_t file_number = atoi(token);
     if(file_number > highest_number_found){
@@ -130,7 +129,7 @@ uint16_t LogFile::get_highest_used_id(){
   return highest_number_found;
 }
 
-void LogFile::close_line(){  //todo:check that the file is  open
+void LogFile::close_line(){
   if(is_sd_failed())
     return;
   this->file.println("");
@@ -145,4 +144,8 @@ void LogFile::override_file_number(uint16_t new_id){
   this->current_id = new_id;
   snprintf(current_name, MAX_FILENAME_LEN, "%s-%d.%s", log_file_name_base, current_id, LOGFILE_EXTENSION);
   Serial.print(F("Logfile: File name is now")); Serial.println(current_name);
+}
+
+File * LogFile::get_file_ptr(){
+  return &this->file;
 }

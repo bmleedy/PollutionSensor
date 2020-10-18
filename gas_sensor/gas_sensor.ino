@@ -156,8 +156,8 @@ void loop() {
     if(loop_number % menu->get_log_every_n_loops() == 0 &&
         menu->get_logon_config()) {
       logfile->open_line(loop_number, loop_start_millis);
-      sensors->log_all(&logfile->file);
-      if(dust != NULL){dust->log(&logfile->file);}
+      sensors->log_all(logfile->get_file_ptr());
+      if(dust != NULL){dust->log(logfile->get_file_ptr());}
       logfile->close_line();
     }
   
@@ -170,8 +170,7 @@ void loop() {
     }
   }
 
-  // todo: create warnings, or display AQI on last line, blink if bad?
-  // todo: compare threshold / settings from the menu with the readings from the sensors
+  // Display sensor threshod warnings
   for(uint8_t sensor_id = 0; sensor_id < sensors->get_num_sensors(); sensor_id++){
     if(sensors->get_sensor_avg(sensor_id) > menu->get_sensor_threshold(sensor_id)){
       lcd->setCursor(COL1, 3);
