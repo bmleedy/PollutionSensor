@@ -59,17 +59,17 @@ void setup() {
 
   Serial.println(F("Init Pins..."));
   pinMode(MENU_SELECT_BUTTON, INPUT_PULLUP);
-  pinMode(MENU_UP_BUTTON, INPUT_PULLUP);
-  pinMode(MENU_DN_BUTTON, INPUT_PULLUP);
+  pinMode(MENU_UP_BUTTON,     INPUT_PULLUP);
+  pinMode(MENU_DN_BUTTON,     INPUT_PULLUP);
   
   Serial.println(F("Init LCD..."));
   lcd = new LiquidCrystal_I2C(0x27,20,4);
   lcd->init(); 
   lcd->backlight();
   lcd->clear();
-  lcd->createChar(FILE_OK_GLYPH, file_ok_glyph);
+  lcd->createChar(FILE_OK_GLYPH,  file_ok_glyph);
   lcd->createChar(FILE_BAD_GLYPH, file_bad_glyph);
-  lcd->createChar(SKULL_GLYPH, skull_glyph);
+  lcd->createChar(SKULL_GLYPH,    skull_glyph);
   lcd->setCursor(0,0);
   if(menu->get_backlight_config())
     lcd->backlight();
@@ -129,7 +129,9 @@ void loop() {
   loop_start_millis = millis();
   
   // Serial log start
-  Serial.print(loop_number++); Serial.print(F(" ----------- ")); Serial.println(loop_start_millis);
+  Serial.print(loop_number++);
+  Serial.print(F(" ----------- "));
+  Serial.println(loop_start_millis);
 
   // Clear the LCD before sensing, which updates all the fields
   lcd->clear();
