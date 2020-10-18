@@ -330,7 +330,7 @@ class SensorMenu{
   
   void display_file_menu(){
     if(logfile == NULL)
-      return false;  // just leave if there's no file attached
+      return;  // just leave if there's no file attached
     
     Serial.println(F("Entered file Callback"));
     lcd->clear();
