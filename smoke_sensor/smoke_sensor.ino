@@ -29,14 +29,15 @@
 // Dust Sensor Physical Configuration
 int dustPin=A0;
 int ledPower=13;  // Pin D13
-int delayTime=280;
-int delayTime2=40;
+int delayTime= 280;
+int delayTime2= 40;
 float offTime=9680;
 
 // Dust Sensor Calibration Constants
-#define DUST_ZERO 0.48      // Volts, 0.5 typical
-#define DUST_OFFSET_CAL 0   // offset to pm2.5 value n 
-#define DUST_SLOPE_CAL 1.65 // multiplier for pm2.5 value
+#define DUST_ZERO 0.12       // Volts, 0.5 typical
+#define DUST_OFFSET_CAL -57  // offset to pm2.5 value n (set per-sensor)
+                             // new green sensor -55
+#define DUST_SLOPE_CAL 1.65  // multiplier for pm2.5 value
 
 // LCD Display content constants and variables
 #define DESC_LEN 30         // max length for AQI Description
@@ -55,7 +56,7 @@ int display_scroll = 0;
 // Loop speed configuration
 #define SLOW_SAMPLING_DELAY_MS 59000  // sample every 60 seconds
 #define SLOW_SAMPLING_FAN_LEAD 10000   // fan on 10 seconds before taking sample
-#define NUM_FAST_ITERATIONS 60 // take 60 samples fast when powered up
+#define NUM_FAST_ITERATIONS 120 // take 120 samples fast when powered up
 
 //////////////////////////////////////////////////////////
 void setup(){ 
@@ -182,6 +183,7 @@ void loop(){ //////////////////////////////////////////////////////////
   Serial.print(" (PM2.5 AVG) -- ");
   Serial.print(dust_pm25);
   Serial.print("(PM2.5) -- ");
+  Serial.print(dustVal);
   Serial.println("");
 
   // Display to the LCD display
