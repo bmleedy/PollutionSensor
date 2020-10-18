@@ -17,8 +17,11 @@ void AnalogSensor::add_sensor(const char short_name[SHORT_NAME_LEN],
   // Init the config
   strncpy(this->config[this->num_sensors].short_name, short_name, SHORT_NAME_LEN);
   this->config[this->num_sensors].accum_rate = accum_rate;
+
+  if(column > 19 || row > 3)
+    Serial.println(F("WARNING: out of bounds display config!"));
   this->config[this->num_sensors].display_column = column;
-  this->config[this->num_sensors].display_row = row;  // todo: add sanity check
+  this->config[this->num_sensors].display_row = row;
   this->config[this->num_sensors].analog_pin = analog_pin;
 
   // Init the data
