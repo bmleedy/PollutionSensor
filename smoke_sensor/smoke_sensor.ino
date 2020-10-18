@@ -36,7 +36,7 @@ float offTime=9680;
 // Dust Sensor Calibration Constants
 #define DUST_ZERO 0.12       // Volts, 0.5 typical
 #define DUST_OFFSET_CAL -57  // offset to pm2.5 value n (set per-sensor)
-                             // new green sensor -55
+                             // new green sensor -57
 #define DUST_SLOPE_CAL 1.65  // multiplier for pm2.5 value
 
 // LCD Display content constants and variables
