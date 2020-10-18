@@ -97,9 +97,9 @@ struct settings_type{
 
 class SensorMenu{
   LiquidCrystal_I2C * lcd = NULL;
-  LogFile * logfile = NULL;  // todo: only show this menu if logfile is not null
-  AnalogSensor * sensors = NULL;  //todo: load basic menu based on analog sensors loaded
-  SmokeSensor * dust = NULL;  //todo: only display menu items if not null
+  LogFile * logfile = NULL;
+  AnalogSensor * sensors = NULL;
+  SmokeSensor * dust = NULL;
   uint8_t col1, col2;
   settings_type config;
 
@@ -384,8 +384,8 @@ class SensorMenu{
   
     while(true){
       if(digitalRead(MENU_SELECT_BUTTON)==LOW){
-        dust->set_display_raw(display_raw);
-        sensors->set_display_raw(display_raw);
+        if(dust    != NULL){dust->set_display_raw(display_raw);}
+        if(sensors != NULL){sensors->set_display_raw(display_raw);}
         wait_for_button_up();
         return false;
       } else if(digitalRead(MENU_UP_BUTTON)==LOW || digitalRead(MENU_DN_BUTTON)==LOW){
