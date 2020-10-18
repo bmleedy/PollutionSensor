@@ -11,8 +11,9 @@
 #define MAX_SENSORS        8
 
 #define MENU_LENGTH 14
-// todo: this whole thing is hokey, and I should be defining these as menu item classes 
-//   and instantiating them with a factory pattern.
+
+// Menu is stored in progmem to save RAM, which means it has to
+//  be more static here than I'd like
 const char menu_e[]      PROGMEM = "EXIT     ";              // 0
 const char menu_raw[]    PROGMEM = "Disp. Raw / Average";    // 1
 const char menu_file[]   PROGMEM = "File";                   // 2
@@ -328,6 +329,9 @@ class SensorMenu{
   }
   
   void display_file_menu(){
+    if(logfile == NULL)
+      return false;  // just leave if there's no file attached
+    
     Serial.println(F("Entered file Callback"));
     lcd->clear();
     lcd->setCursor(0, 0);
@@ -342,9 +346,12 @@ class SensorMenu{
   }
   
   bool file_callback(){
-      display_file_menu();
-      wait_for_button_up();
-      while(true){
+    if(logfile == NULL)
+      return false;  // just leave if there's no file attached
+
+    display_file_menu();
+    wait_for_button_up();
+    while(true){
       if(digitalRead(MENU_SELECT_BUTTON)==LOW){
         // commit_config();  //write to EEPROM before exiting
         wait_for_button_up();
@@ -414,11 +421,11 @@ class SensorMenu{
     switch(id){
       case 0:  rv = exit_callback(); break;
       case 1:  rv = disp_callback(); break;
-      case 2:  rv = file_callback(); break;
+      case 2:  if(logfile != NULL){rv = file_callback();} break;
       case 3:  rv = sampling_callback(); break;
-      case 4:  rv = lograte_callback(); break;
+      case 4:  if(logfile != NULL){rv = lograte_callback();} break;
       case 5:  rv = backlight_callback(); break;
-      case 6:  rv = logon_callback(); break;
+      case 6:  if(logfile != NULL){rv = logon_callback();} break;
       case 7:  rv = sensor_settings_callback("LPG", &this->config.sensor_thresholds[0]);    break;//  7: LPG Gas Sensor
       case 8:  rv = sensor_settings_callback("CO",  &this->config.sensor_thresholds[1]);     break;//  8: Carbon Monoxide Sensor
       case 9:  rv = sensor_settings_callback("O3",  &this->config.sensor_thresholds[2]);  break;//  9: Ozone Sensor
