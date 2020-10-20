@@ -3,10 +3,12 @@
 #ifndef GAS_SENSOR_LOGFILE_H_
 #define GAS_SENSOR_LOGFILE_H_
 
-#include <Arduino.h>
-#include <SPI.h>
-#include <SD.h>
-#include <EEPROM.h>
+#ifndef IN_TESTING  // we will mock libs for tesing
+  #include <Arduino.h>
+  #include <SPI.h>
+  #include <SD.h>
+  #include <EEPROM.h>
+#endif
 
 #define MAX_FILENAME_LEN 12  // filenames can be a
                              // maximum of 8 characters for FAT

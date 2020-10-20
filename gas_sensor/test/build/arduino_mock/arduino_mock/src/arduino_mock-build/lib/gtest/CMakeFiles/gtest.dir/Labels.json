@@ -1,0 +1,43 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "/Users/bmleedy/PollutionSensor/gas_sensor/test/build/arduino_mock/arduino_mock/src/arduino_mock-build/lib/gtest/CMakeFiles/gtest"
+		},
+		{
+			"file" : "/Users/bmleedy/PollutionSensor/gas_sensor/test/build/arduino_mock/arduino_mock/src/arduino_mock-build/lib/gtest/CMakeFiles/gtest.rule"
+		},
+		{
+			"file" : "/Users/bmleedy/PollutionSensor/gas_sensor/test/build/arduino_mock/arduino_mock/src/arduino_mock-build/lib/gtest/CMakeFiles/gtest-complete.rule"
+		},
+		{
+			"file" : "/Users/bmleedy/PollutionSensor/gas_sensor/test/build/arduino_mock/arduino_mock/src/arduino_mock-build/lib/gtest/gtest/src/gtest-stamp/gtest-install.rule"
+		},
+		{
+			"file" : "/Users/bmleedy/PollutionSensor/gas_sensor/test/build/arduino_mock/arduino_mock/src/arduino_mock-build/lib/gtest/gtest/src/gtest-stamp/gtest-mkdir.rule"
+		},
+		{
+			"file" : "/Users/bmleedy/PollutionSensor/gas_sensor/test/build/arduino_mock/arduino_mock/src/arduino_mock-build/lib/gtest/gtest/src/gtest-stamp/gtest-download.rule"
+		},
+		{
+			"file" : "/Users/bmleedy/PollutionSensor/gas_sensor/test/build/arduino_mock/arduino_mock/src/arduino_mock-build/lib/gtest/gtest/src/gtest-stamp/gtest-update.rule"
+		},
+		{
+			"file" : "/Users/bmleedy/PollutionSensor/gas_sensor/test/build/arduino_mock/arduino_mock/src/arduino_mock-build/lib/gtest/gtest/src/gtest-stamp/gtest-patch.rule"
+		},
+		{
+			"file" : "/Users/bmleedy/PollutionSensor/gas_sensor/test/build/arduino_mock/arduino_mock/src/arduino_mock-build/lib/gtest/gtest/src/gtest-stamp/gtest-configure.rule"
+		},
+		{
+			"file" : "/Users/bmleedy/PollutionSensor/gas_sensor/test/build/arduino_mock/arduino_mock/src/arduino_mock-build/lib/gtest/gtest/src/gtest-stamp/gtest-build.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"gtest"
+		],
+		"name" : "gtest"
+	}
+}
