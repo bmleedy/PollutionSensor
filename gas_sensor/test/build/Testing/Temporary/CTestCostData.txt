@@ -1,3 +1,0 @@
-TestAll 0 0
----
-TestAll

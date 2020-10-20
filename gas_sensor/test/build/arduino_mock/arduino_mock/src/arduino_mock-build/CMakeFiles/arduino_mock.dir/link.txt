@@ -1,2 +1,0 @@
-/Library/Developer/CommandLineTools/usr/bin/ar qc dist/lib/libarduino_mock.a CMakeFiles/arduino_mock.dir/src/ArduinoMockAll.cc.o
-/Library/Developer/CommandLineTools/usr/bin/ranlib dist/lib/libarduino_mock.a

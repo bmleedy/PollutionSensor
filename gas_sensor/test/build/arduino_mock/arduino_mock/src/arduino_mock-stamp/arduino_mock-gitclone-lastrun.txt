@@ -1,3 +1,0 @@
-repository='https://github.com/wjszlachta/arduino-mock.git'
-module=''
-tag='origin'
