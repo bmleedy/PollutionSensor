@@ -1,7 +1,11 @@
 #define FILE_WRITE 0
 #define FILE_READ 1
 
-
+// Fake class to mock and make assertions about
+// this is necessary because we're not actually able 
+// to build the SD library for this platform,
+// or rather won't get value out of spending the time.
+//
 class File {
  public:				
   File(){}

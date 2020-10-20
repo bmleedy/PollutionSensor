@@ -155,5 +155,6 @@ void LogFile::override_file_number(uint16_t new_id) {
 }
 
 File * LogFile::get_file_ptr() {
+  // todo: make this safer
   return &this->file;
 }
