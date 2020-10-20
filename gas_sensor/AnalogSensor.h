@@ -1,5 +1,7 @@
-#ifndef ANALOGSENSOR_H
-#define ANALOGSENSOR_H
+// Copyright 2020 Brett M. Leedy
+
+#ifndef GAS_SENSOR_ANALOGSENSOR_H_
+#define GAS_SENSOR_ANALOGSENSOR_H_
 
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
@@ -22,15 +24,15 @@ struct sensor_state {
 };
 
 class AnalogSensor {
-  sensor_config config[6];  //statically allocated.  We'll use it anyway
+  sensor_config config[6];  // statically allocated.  We'll use it anyway
   sensor_state state[6];
   uint8_t num_sensors = 0;
   LiquidCrystal_I2C* lcd = NULL;
   bool display_raw = false;
 
-public:
-  AnalogSensor(LiquidCrystal_I2C* lcd);
-  void add_sensor(const char short_name[SHORT_NAME_LEN], 
+ public:
+  explicit AnalogSensor(LiquidCrystal_I2C* lcd);
+  void add_sensor(const char short_name[SHORT_NAME_LEN],
               uint8_t column,
               uint8_t row,
               uint8_t analog_pin,
@@ -45,7 +47,7 @@ public:
   void set_display_raw(bool display_raw);
   void set_zero(uint8_t sensor_id, uint16_t zero_adjust);
   uint16_t get_sensor_avg(uint8_t sensor_id);
-  uint8_t get_num_sensors(){return num_sensors;}
-  char * get_short_name(uint8_t i){return config[i].short_name;}
+  uint8_t get_num_sensors() {return num_sensors;}
+  char * get_short_name(uint8_t i) {return config[i].short_name;}
 };
-#endif
+#endif  // GAS_SENSOR_ANALOGSENSOR_H_

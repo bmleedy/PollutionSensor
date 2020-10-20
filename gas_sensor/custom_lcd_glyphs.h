@@ -1,8 +1,9 @@
-#ifndef CUSTOM_LCD_GLYPHS_H
-#define  CUSTOM_LCD_GLYPHS_H
+// Copyright 2020 Brett M. Leedy
 
-byte file_ok_glyph[8] = 
-  {
+#ifndef GAS_SENSOR_CUSTOM_LCD_GLYPHS_H_
+#define GAS_SENSOR_CUSTOM_LCD_GLYPHS_H_
+
+byte file_ok_glyph[8] = {
     B11110,
     B10001,
     B11111,
@@ -12,8 +13,7 @@ byte file_ok_glyph[8] =
     B11111,
   };
 
-byte file_bad_glyph[8] = 
-  {
+byte file_bad_glyph[8] = {
     B11110,
     B10001,
     B11011,
@@ -24,15 +24,15 @@ byte file_bad_glyph[8] =
   };
 
 byte skull_glyph[8] = {
-0b00000,
-0b01110,
-0b10101,
-0b11011,
-0b01110,
-0b01110,
-0b00000,
-0b00000
+    B00000,
+    B01110,
+    B10101,
+    B11011,
+    B01110,
+    B01110,
+    B00000,
+    B00000
 };
 
 
-#endif
+#endif  // GAS_SENSOR_CUSTOM_LCD_GLYPHS_H_
